@@ -1,0 +1,20 @@
+"use client";
+
+import { useEffect } from "react";
+import { useAuth0 } from "@auth0/auth0-react";
+import { useRouter } from "next/navigation";
+
+export default function CallbackPage() {
+    const { handleRedirectCallback, isAuthenticated } = useAuth0();
+    const router = useRouter();
+
+    useEffect(() => {
+        const handleAuth = async () => {
+            await handleRedirectCallback(); // This finalizes the login
+            router.push("/"); // Go back to home
+        };
+        handleAuth();
+    }, []);
+
+    return <p className="p-4">Processing login...</p>;
+}

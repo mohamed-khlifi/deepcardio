@@ -1,0 +1,458 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { useAuth0 } from '@auth0/auth0-react';
+
+import { TopBar } from '@/app/components/TopBar';
+import { Sidebar, Section } from '@/app/components/Sidebar';
+import { SummaryPanel, SummaryBuckets } from '@/app/components/SummaryPanel';
+import { SymptomsSection } from '@/app/components/SymptomsSection';
+import { PersonalHistorySection } from '@/app/components/PersonalHistorySection';
+import { VitalSignsSection } from '@/app/components/VitalSignsSection';
+
+import {
+    User,
+    Phone,
+    Heart,
+    IdCard,
+    Loader2,
+    ArrowLeft,
+    Pencil,
+    Save,
+    X,
+    Calendar as CalendarIcon,
+} from 'lucide-react';
+
+import { Button } from '@/components/ui/button';
+import {
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
+} from '@/components/ui/popover';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Calendar } from '@/components/ui/calendar';
+import { cn } from '@/lib/utils';
+import { format } from 'date-fns';
+
+const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8001/api/v1';
+
+function InfoCard({
+                      title,
+                      icon,
+                      children,
+                  }: {
+    title: string;
+    icon: React.ReactNode;
+    children: React.ReactNode;
+}) {
+    return (
+        <div className="rounded-xl border shadow-sm bg-white flex flex-col">
+            <header className="flex items-center gap-2 border-b bg-gray-50/70 px-5 py-3 rounded-t-xl">
+                <span className="text-primary">{icon}</span>
+                <h3 className="text-sm font-medium text-primary">{title}</h3>
+            </header>
+            <div className="px-5 py-4 space-y-3 text-sm text-gray-700 grow">
+                {children}
+            </div>
+        </div>
+    );
+}
+
+function Field({
+                   label,
+                   value,
+                   editable = false,
+                   onChange,
+                   type = 'text',
+                   options,
+                   date,
+               }: {
+    label?: string;
+    value?: string | null;
+    editable?: boolean;
+    onChange?: (v: string) => void;
+    type?: 'text' | 'email';
+    options?: string[];
+    date?: boolean;
+}) {
+    const selectedDate = value ? new Date(value) : undefined;
+
+    return (
+        <div className="flex items-center gap-2">
+            {label && <span className="font-medium w-[120px]">{label}:</span>}
+
+            {editable && options ? (
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button
+                            variant="outline"
+                            className="w-full justify-start bg-white text-black"
+                        >
+                            {value || 'Select…'}
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent className="bg-white text-black">
+                        {options.map((opt) => (
+                            <DropdownMenuItem key={opt} onClick={() => onChange?.(opt)}>
+                                {opt}
+                            </DropdownMenuItem>
+                        ))}
+                    </DropdownMenuContent>
+                </DropdownMenu>
+            ) : editable && date ? (
+                <Popover>
+                    <PopoverTrigger asChild>
+                        <Button
+                            variant={'outline'}
+                            className={cn(
+                                'w-full justify-start text-left font-normal bg-white text-black',
+                                !value && 'text-muted-foreground'
+                            )}
+                        >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {value ? format(new Date(value), 'PPP') : 'Pick a date'}
+                        </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0 bg-white text-black shadow-lg border z-50">
+                        <Calendar
+                            mode="single"
+                            selected={selectedDate}
+                            defaultMonth={selectedDate}
+                            onSelect={(date) =>
+                                onChange?.(date?.toISOString().split('T')[0] ?? '')
+                            }
+                            initialFocus
+                        />
+                    </PopoverContent>
+                </Popover>
+            ) : editable ? (
+                <input
+                    className="border rounded px-2 py-1 text-sm w-full"
+                    value={value ?? ''}
+                    type={type}
+                    onChange={(e) => onChange?.(e.target.value)}
+                />
+            ) : (
+                <span className={value ? '' : 'italic text-gray-400'}>
+          {value || '—'}
+        </span>
+            )}
+        </div>
+    );
+}
+
+export default function PatientPage() {
+    const { id } = useParams() as { id: string };
+    const router = useRouter();
+    const { getAccessTokenSilently, user } = useAuth0();
+
+    const [patient, setPatient] = useState<any | null>(null);
+    const [form, setForm] = useState<any | null>(null);
+    const [summary, setSummary] = useState<SummaryBuckets | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [editing, setEditing] = useState(false);
+    const [saving, setSaving] = useState(false);
+    const [section, setSection] = useState<Section>('home');
+
+    useEffect(() => {
+        if (!id) return;
+
+        (async () => {
+            try {
+                const token = await getAccessTokenSilently();
+                const res = await fetch(`${API}/patients/${id}`, {
+                    headers: { Authorization: `Bearer ${token}` },
+                });
+                if (!res.ok) throw new Error(await res.text());
+                const data = await res.json();
+
+                setPatient(data);
+                setForm({
+                    first_name: data.demographics.first_name,
+                    last_name: data.demographics.last_name,
+                    gender: data.demographics.gender,
+                    dob: data.demographics.date_of_birth,
+                    ethnicity: data.demographics.ethnicity ?? '',
+                    phone: data.contact_info.phone ?? '',
+                    email: data.contact_info.email ?? '',
+                    occupation: data.social_info.occupation ?? '',
+                    address: data.social_info.address ?? '',
+                    marital_status: data.social_info.marital_status ?? '',
+                    insurance_provider: data.social_info.insurance_provider ?? '',
+                });
+
+                setSummary({
+                    follow_up_actions:
+                        data.follow_up_actions?.map((x: any) => ({
+                            id: x.id,
+                            label: x.action,
+                            extra: x.interval,
+                        })) ?? [],
+                    recommendations:
+                        data.recommendations?.map((x: any) => ({
+                            id: x.id,
+                            label: x.recommendation,
+                        })) ?? [],
+                    referrals:
+                        data.referrals?.map((x: any) => ({
+                            id: x.id,
+                            label: x.specialist,
+                            extra: x.reason,
+                        })) ?? [],
+                    risks:
+                        data.risks?.map((x: any) => ({
+                            id: x.id,
+                            label: x.value,
+                            extra: x.reason,
+                        })) ?? [],
+                    life_style_advice:
+                        data.life_style_advice?.map((x: any) => ({
+                            id: x.id,
+                            label: x.advice,
+                        })) ?? [],
+                    presumptive_diagnoses:
+                        data.presumptive_diagnoses?.map((x: any) => ({
+                            id: x.id,
+                            label: x.diagnosis_name,
+                            extra: x.confidence_level,
+                        })) ?? [],
+                    tests_to_order:
+                        data.tests_to_order?.map((x: any) => ({
+                            id: x.id,
+                            label: x.test_to_order,
+                        })) ?? [],
+                });
+            } catch (err) {
+                console.error(err);
+                router.replace('/dashboard');
+            } finally {
+                setLoading(false);
+            }
+        })();
+    }, [id, getAccessTokenSilently, router]);
+
+    const handleSave = async () => {
+        if (!patient) return;
+        try {
+            setSaving(true);
+            const token = await getAccessTokenSilently();
+            const body = {
+                first_name: form.first_name,
+                last_name: form.last_name,
+                gender: form.gender,
+                dob: form.dob,
+                ethnicity: form.ethnicity,
+                phone: form.phone,
+                email: form.email,
+                occupation: form.occupation,
+                address: form.address,
+                marital_status: form.marital_status,
+                insurance_provider: form.insurance_provider,
+            };
+            const res = await fetch(`${API}/patients/${patient.id}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${token}`,
+                },
+                body: JSON.stringify(body),
+            });
+            if (!res.ok) throw new Error(await res.text());
+            setEditing(false);
+        } catch (err) {
+            console.error('Error saving patient:', err);
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    return (
+        <div className="flex h-screen overflow-hidden">
+            <Sidebar active={section} onChange={setSection} />
+            <div className="flex-1 flex flex-col overflow-y-auto bg-gray-50">
+                <TopBar doctorName={user?.name ?? ''} />
+
+                <div className="px-6 pt-6 flex justify-between items-center">
+                    <Link
+                        href="/dashboard"
+                        className="inline-flex items-center gap-2 rounded-full border bg-white px-4 py-2 text-sm shadow-sm hover:bg-gray-50"
+                    >
+                        <ArrowLeft className="size-4 text-primary" />
+                        <span className="hidden sm:inline">Back to Dashboard</span>
+                    </Link>
+
+                    {patient && section === 'home' && (
+                        editing ? (
+                            <div className="flex gap-2">
+                                <Button onClick={handleSave} disabled={saving}>
+                                    <Save className="size-4 mr-2" />
+                                    {saving ? 'Saving...' : 'Save'}
+                                </Button>
+                                <Button variant="outline" onClick={() => setEditing(false)}>
+                                    <X className="size-4 mr-2" /> Cancel
+                                </Button>
+                            </div>
+                        ) : (
+                            <Button onClick={() => setEditing(true)}>
+                                <Pencil className="size-4 mr-2" /> Edit Info
+                            </Button>
+                        )
+                    )}
+                </div>
+
+                <main className="p-10 flex-1 overflow-y-auto">
+                    {loading && (
+                        <div className="h-full flex items-center justify-center">
+                            <Loader2 className="size-6 animate-spin text-primary" />
+                        </div>
+                    )}
+
+                    {/* ── Home / Info ── */}
+                    {!loading && section === 'home' && form && (
+                        <>
+                            <h1 className="text-3xl font-bold mb-8 flex items-center gap-3">
+                                <IdCard className="size-7 text-primary" />
+                                {form.first_name} {form.last_name}
+                            </h1>
+                            <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
+                                <InfoCard title="Demographics" icon={<User className="size-4" />}>
+                                    <Field
+                                        label="First Name"
+                                        value={form.first_name}
+                                        editable={editing}
+                                        onChange={(v) => setForm({ ...form, first_name: v })}
+                                    />
+                                    <Field
+                                        label="Last Name"
+                                        value={form.last_name}
+                                        editable={editing}
+                                        onChange={(v) => setForm({ ...form, last_name: v })}
+                                    />
+                                    <Field
+                                        label="Gender"
+                                        value={form.gender}
+                                        editable={editing}
+                                        onChange={(v) => setForm({ ...form, gender: v })}
+                                        options={['Male', 'Female']}
+                                    />
+                                    <Field
+                                        label="DOB"
+                                        value={form.dob}
+                                        editable={editing}
+                                        onChange={(v) => setForm({ ...form, dob: v })}
+                                        date
+                                    />
+                                    <Field
+                                        label="Ethnicity"
+                                        value={form.ethnicity}
+                                        editable={editing}
+                                        onChange={(v) => setForm({ ...form, ethnicity: v })}
+                                    />
+                                </InfoCard>
+
+                                <InfoCard title="Contact" icon={<Phone className="size-4" />}>
+                                    <Field
+                                        label="Phone"
+                                        value={form.phone}
+                                        editable={editing}
+                                        onChange={(v) => setForm({ ...form, phone: v })}
+                                    />
+                                    <Field
+                                        label="Email"
+                                        value={form.email}
+                                        editable={editing}
+                                        onChange={(v) => setForm({ ...form, email: v })}
+                                    />
+                                </InfoCard>
+
+                                <InfoCard
+                                    title="Social & Insurance"
+                                    icon={<Heart className="size-4" />}
+                                >
+                                    <Field
+                                        label="Occupation"
+                                        value={form.occupation}
+                                        editable={editing}
+                                        onChange={(v) => setForm({ ...form, occupation: v })}
+                                    />
+                                    <Field
+                                        label="Address"
+                                        value={form.address}
+                                        editable={editing}
+                                        onChange={(v) => setForm({ ...form, address: v })}
+                                    />
+                                    <Field
+                                        label="Marital Status"
+                                        value={form.marital_status}
+                                        editable={editing}
+                                        onChange={(v) => setForm({ ...form, marital_status: v })}
+                                    />
+                                    <Field
+                                        label="Insurance Provider"
+                                        value={form.insurance_provider}
+                                        editable={editing}
+                                        onChange={(v) => setForm({ ...form, insurance_provider: v })}
+                                    />
+                                </InfoCard>
+                            </div>
+                        </>
+                    )}
+
+                    {/* ── Symptoms ── */}
+                    {!loading && patient && section === 'symptoms' && (
+                        <SymptomsSection
+                            patientId={patient.id}
+                            patientName={`${patient.demographics.first_name} ${patient.demographics.last_name}`}
+                        />
+                    )}
+
+                    {/* ── Personal History ── */}
+                    {!loading && patient && section === 'history' && (
+                        <PersonalHistorySection
+                            patientId={patient.id}
+                            patientName={`${patient.demographics.first_name} ${patient.demographics.last_name}`}
+                        />
+                    )}
+
+                    {/* ── Vital Signs ── */}
+                    {!loading && patient && section === 'vitals' && (
+                        <VitalSignsSection
+                            patientId={patient.id}
+                            patientName={`${patient.demographics.first_name} ${patient.demographics.last_name}`}
+                        />
+                    )}
+
+                    {/* ── Summary ── */}
+                    {!loading && section === 'summary' && summary && (
+                        <>
+                            <h1 className="text-3xl font-bold mb-8">
+                                Summary for{' '}
+                                <span className="text-primary">
+                  {form.first_name} {form.last_name}
+                </span>
+                            </h1>
+                            <SummaryPanel {...summary} />
+                        </>
+                    )}
+
+                    {/* ── Coming Soon ── */}
+                    {!loading &&
+                        !['home', 'symptoms', 'history', 'vitals', 'summary'].includes(
+                            section
+                        ) && (
+                            <div className="h-full flex items-center justify-center text-gray-400 italic">
+                                This section is coming soon…
+                            </div>
+                        )}
+                </main>
+            </div>
+        </div>
+    );
+}

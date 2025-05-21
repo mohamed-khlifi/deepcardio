@@ -1,0 +1,87 @@
+// File: app/components/Sidebar.tsx
+'use client';
+
+import React from 'react';
+import Link from 'next/link';
+import {
+    Home,
+    ListChecks,
+    FileText,
+    HeartPulse,
+    PieChart,
+} from 'lucide-react';
+
+export type Section =
+    | 'home'
+    | 'symptoms'
+    | 'history'
+    | 'vitals'
+    | 'summary';
+
+export function Sidebar({
+                            active,
+                            onChange,
+                        }: {
+    active: Section;
+    onChange: (section: Section) => void;
+}) {
+    const btnBase =
+        'w-full flex items-center gap-2 px-4 py-3 rounded hover:bg-gray-100 transition-colors';
+    const btnActive = 'bg-gray-200';
+
+    return (
+        <aside className="w-64 border-r bg-white flex flex-col">
+            <nav className="py-6 space-y-1">
+                <button
+                    className={`${btnBase} ${
+                        active === 'home' ? btnActive : ''
+                    }`}
+                    onClick={() => onChange('home')}
+                >
+                    <Home className="size-5 text-gray-600" />
+                    <span>Info</span>
+                </button>
+
+                <button
+                    className={`${btnBase} ${
+                        active === 'symptoms' ? btnActive : ''
+                    }`}
+                    onClick={() => onChange('symptoms')}
+                >
+                    <ListChecks className="size-5 text-gray-600" />
+                    <span>Symptoms</span>
+                </button>
+
+                <button
+                    className={`${btnBase} ${
+                        active === 'history' ? btnActive : ''
+                    }`}
+                    onClick={() => onChange('history')}
+                >
+                    <FileText className="size-5 text-gray-600" />
+                    <span>History</span>
+                </button>
+
+                <button
+                    className={`${btnBase} ${
+                        active === 'vitals' ? btnActive : ''
+                    }`}
+                    onClick={() => onChange('vitals')}
+                >
+                    <HeartPulse className="size-5 text-gray-600" />
+                    <span>Vitals</span>
+                </button>
+
+                <button
+                    className={`${btnBase} ${
+                        active === 'summary' ? btnActive : ''
+                    }`}
+                    onClick={() => onChange('summary')}
+                >
+                    <PieChart className="size-5 text-gray-600" />
+                    <span>Summary</span>
+                </button>
+            </nav>
+        </aside>
+    );
+}
