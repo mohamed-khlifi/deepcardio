@@ -1,0 +1,16 @@
+from pydantic import BaseModel
+from typing import Optional
+from datetime import date
+
+class PatientSymptomCreate(BaseModel):
+    patient_id: int
+    symptom_id: int
+    onset_date: Optional[date] = None
+
+class PatientSymptomResponse(BaseModel):
+    patient_id: int
+    symptom_id: int
+    onset_date: Optional[date] = None
+
+    class Config:
+        orm_mode = True

@@ -1,0 +1,72 @@
+Folder PATH listing
+Volume serial number is E2B6-D11F
+C:.
+|   main.py
+|   structure.txt
+|   
++---.idea
+|       .gitignore
+|       app.iml
+|       misc.xml
+|       modules.xml
+|       workspace.xml
+|       
++---api
+|   |   __init__.py
+|   |   
+|   +---v1
+|   |   |   __init__.py
+|   |   |   
+|   |   +---endpoints
+|   |   |   |   health.py
+|   |   |   |   patient.py
+|   |   |   |   __init__.py
+|   |   |   |   
+|   |   |   \---__pycache__
+|   |   |           health.cpython-313.pyc
+|   |   |           patient.cpython-313.pyc
+|   |   |           __init__.cpython-313.pyc
+|   |   |           
+|   |   \---__pycache__
+|   |           __init__.cpython-313.pyc
+|   |           
+|   \---__pycache__
+|           __init__.cpython-313.pyc
+|           
++---core
+|   |   config.py
+|   |   deps.py
+|   |   deps.py~
+|   |   __init__.py
+|   |   
+|   \---__pycache__
+|           config.cpython-313.pyc
+|           deps.cpython-313.pyc
+|           __init__.cpython-313.pyc
+|           
++---models
+|   |   health.py
+|   |   patient.py
+|   |   patient.py~
+|   |   patient_schema.py
+|   |   __init__.py
+|   |   
+|   \---__pycache__
+|           health.cpython-313.pyc
+|           patient.cpython-313.pyc
+|           patient_schema.cpython-313.pyc
+|           __init__.cpython-313.pyc
+|           
++---services
+|   |   health_service.py
+|   |   patient_service.py
+|   |   __init__.py
+|   |   
+|   \---__pycache__
+|           health_service.cpython-313.pyc
+|           patient_service.cpython-313.pyc
+|           __init__.cpython-313.pyc
+|           
+\---__pycache__
+        main.cpython-313.pyc
+        

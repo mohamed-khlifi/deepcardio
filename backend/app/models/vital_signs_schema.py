@@ -1,0 +1,28 @@
+from pydantic import BaseModel
+from datetime import date
+from typing import Optional
+
+class PatientVitalSignCreate(BaseModel):
+    patient_id: int
+    vital_sign_id: int
+    measurement_date: date
+    value: str
+
+class PatientVitalSignUpdate(BaseModel):
+    patient_id: int
+    vital_sign_id: int
+    measurement_date: date
+    new_value: str
+
+class PatientVitalSignDelete(BaseModel):
+    patient_id: int
+    vital_sign_id: int
+
+class VitalSignDictResponse(BaseModel):
+    vital_sign_id: int
+    name: str
+    category: Optional[str] = None
+    unit: Optional[str] = None
+
+    class Config:
+        from_attributes = True

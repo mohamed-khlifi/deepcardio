@@ -1,0 +1,31 @@
+from models.patient import Patient
+from schemas.patient_schema import PatientResponse, Demographics, ContactInfo, SocialInfo
+from datetime import date
+
+def calculate_age(dob: date) -> int:
+    today = date.today()
+    return today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
+
+
+def build_patient_response(patient: Patient) -> PatientResponse:
+    return PatientResponse(
+        id=patient.patient_id,
+        demographics=Demographics(
+            first_name=patient.first_name,
+            last_name=patient.last_name,
+            gender=patient.gender,
+            age=calculate_age(patient.dob),
+            date_of_birth=patient.dob,
+            ethnicity=patient.ethnicity
+        ),
+        contact_info=ContactInfo(
+            phone=patient.phone,
+            email=patient.email
+        ),
+        social_info=SocialInfo(
+            marital_status=patient.marital_status,
+            occupation=patient.occupation,
+            insurance_provider=patient.insurance_provider,
+            address=patient.address
+        )
+    )

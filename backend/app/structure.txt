@@ -1,0 +1,33 @@
+Folder PATH listing
+Volume serial number is E2B6-D11F
+app:.
+|   main.py
+|       
++---api
+|   |   __init__.py
+|   |   
+|   +---v1
+|   |   |   __init__.py
+|   |   |   
+|   |   +---endpoints
+|   |   |   |   health.py
+|   |   |   |   patient.py
+|   |   |   |   __init__.py
+|           
++---core
+|   |   config.py
+|   |   deps.py
+|   |   __init__.py
+|           
++---models
+|   |   health.py
+|   |   patient.py
+|   |   patient_schema.py
+|   |   __init__.py
+|           
++---services
+|   |   health_service.py
+|   |   patient_service.py
+|   |   __init__.py
+
+        
