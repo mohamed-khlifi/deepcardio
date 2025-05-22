@@ -38,6 +38,8 @@ export function PersonalHistorySection({
     const { getAccessTokenSilently } = useAuth0();
     const [items, setItems] = useState<HistoryItem[]>([]);
     const [selected, setSelected] = useState<Set<number>>(new Set());
+    // Map of history_id -> date_recorded (string)
+    const [dates, setDates] = useState<Map<number, string>>(new Map());
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -46,7 +48,7 @@ export function PersonalHistorySection({
                 setLoading(true);
                 const token = await getAccessTokenSilently();
 
-                // 1) Load the full list of history items
+                // 1) Load full dictionary
                 const dictRes = await fetch(`${API}/personal-history/dict`, {
                     headers: { Authorization: `Bearer ${token}` },
                 });
@@ -62,7 +64,13 @@ export function PersonalHistorySection({
                 const patData: PatientHistory[] = await patRes.json();
 
                 setItems(dictData);
-                setSelected(new Set(patData.map((h) => h.history_id)));
+                // Build set of selected IDs
+                const sel = new Set(patData.map((h) => h.history_id));
+                setSelected(sel);
+                // Build map of history_id -> date_recorded
+                const dateMap = new Map<number, string>();
+                patData.forEach((h) => dateMap.set(h.history_id, h.date_recorded));
+                setDates(dateMap);
             } catch (err) {
                 console.error('Failed to load personal history', err);
             } finally {
@@ -74,38 +82,46 @@ export function PersonalHistorySection({
     const toggle = async (id: number, on: boolean) => {
         try {
             const token = await getAccessTokenSilently();
-            const today = new Date().toISOString().split('T')[0];
+            // When adding, record today; when deleting, pull original date
+            const date_recorded = on
+                ? new Date().toISOString().split('T')[0]
+                : dates.get(id)!;
+
+            const res = await fetch(`${API}/personal-history`, {
+                method: on ? 'POST' : 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${token}`,
+                },
+                body: JSON.stringify({
+                    patient_id: patientId,
+                    history_id: id,
+                    date_recorded,
+                }),
+            });
+            if (!res.ok) throw new Error(await res.text());
+
             if (on) {
-                const res = await fetch(`${API}/personal-history`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        Authorization: `Bearer ${token}`,
-                    },
-                    body: JSON.stringify({
-                        patient_id: patientId,
-                        history_id: id,
-                        date_recorded: today,
-                    }),
-                });
-                if (!res.ok) throw new Error(await res.text());
-                setSelected((prev) => new Set(prev).add(id));
-            } else {
-                const res = await fetch(`${API}/personal-history`, {
-                    method: 'DELETE',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        Authorization: `Bearer ${token}`,
-                    },
-                    body: JSON.stringify({
-                        patient_id: patientId,
-                        history_id: id,
-                        date_recorded: today,
-                    }),
-                });
-                if (!res.ok) throw new Error(await res.text());
+                // add to selected and dates
                 setSelected((prev) => {
                     const copy = new Set(prev);
+                    copy.add(id);
+                    return copy;
+                });
+                setDates((prev) => {
+                    const copy = new Map(prev);
+                    copy.set(id, date_recorded);
+                    return copy;
+                });
+            } else {
+                // remove from both
+                setSelected((prev) => {
+                    const copy = new Set(prev);
+                    copy.delete(id);
+                    return copy;
+                });
+                setDates((prev) => {
+                    const copy = new Map(prev);
                     copy.delete(id);
                     return copy;
                 });

@@ -2,25 +2,25 @@
 
 import { TopBar } from '@/app/components/TopBar';
 import { PatientSearch } from '@/app/components/PatientSearch';
-import { AppointmentsList } from '@/app/components/AppointmentsList';
 import { useAuth0 } from '@auth0/auth0-react';
+
+/** FastAPI base */
+const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8001/api/v1';
 
 export default function Dashboard() {
     const { isAuthenticated, isLoading, user } = useAuth0();
+
+    /* 1 – un-authed users are redirected by AuthProvider, so nothing here */
     if (isLoading || !isAuthenticated) return null;
 
+    /* 2 – render search page full-width */
     return (
         <div className="min-h-screen flex flex-col bg-gray-50">
             <TopBar doctorName={user?.name ?? ''} />
 
-            <main className="flex-1 p-6 overflow-y-auto">
-                <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-8">
-                    {/* Left: patient search */}
-                    <PatientSearch />
-
-                    {/* Right: today’s appointments */}
-                    <AppointmentsList />
-                </div>
+            {/* main content */}
+            <main className="flex-1 flex items-center justify-center p-6">
+                <PatientSearch />
             </main>
         </div>
     );

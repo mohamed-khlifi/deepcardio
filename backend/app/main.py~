@@ -34,7 +34,6 @@ app.include_router(vital_signs_router, prefix="/api/v1", tags=["Vital Signs"])
 app.include_router(personal_history_router, prefix="/api/v1", tags=["Personal History"])
 app.include_router(tests_router, prefix="/api/v1", tags=["Tests"])
 app.include_router(doctors_router, prefix="/api/v1", tags=["Doctors"])
-app.include_router(appointments_router, prefix="/api/v1", tags=["Appointments"])
 
 # Custom OpenAPI with Bearer Auth
 def custom_openapi():

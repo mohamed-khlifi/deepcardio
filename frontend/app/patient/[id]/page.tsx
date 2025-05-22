@@ -1,12 +1,14 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth0 } from '@auth0/auth0-react';
+import { format, parseISO, isToday, isFuture } from 'date-fns';
 
 import { TopBar } from '@/app/components/TopBar';
 import { Sidebar, Section } from '@/app/components/Sidebar';
+import { ExportPdfButton } from '@/app/components/ExportPdfButton';
 import { SummaryPanel, SummaryBuckets } from '@/app/components/SummaryPanel';
 import { SymptomsSection } from '@/app/components/SymptomsSection';
 import { PersonalHistorySection } from '@/app/components/PersonalHistorySection';
@@ -23,24 +25,33 @@ import {
     Pencil,
     Save,
     X,
-    Calendar as CalendarIcon,
+    Trash2,
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import {
-    Popover,
-    PopoverContent,
-    PopoverTrigger,
-} from '@/components/ui/popover';
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogFooter,
+} from '@/components/ui/dialog';
 import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { Calendar } from '@/components/ui/calendar';
+    AlertDialog,
+    AlertDialogTrigger,
+    AlertDialogPortal,
+    AlertDialogOverlay,
+    AlertDialogContent,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogCancel,
+    AlertDialogAction,
+} from '@/components/ui/alert-dialog';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
-import { format } from 'date-fns';
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8001/api/v1';
 
@@ -72,7 +83,6 @@ function Field({
                    editable = false,
                    onChange,
                    type = 'text',
-                   options,
                    date,
                }: {
     label?: string;
@@ -80,64 +90,16 @@ function Field({
     editable?: boolean;
     onChange?: (v: string) => void;
     type?: 'text' | 'email';
-    options?: string[];
     date?: boolean;
 }) {
-    const selectedDate = value ? new Date(value) : undefined;
-
     return (
         <div className="flex items-center gap-2">
             {label && <span className="font-medium w-[120px]">{label}:</span>}
-
-            {editable && options ? (
-                <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                        <Button
-                            variant="outline"
-                            className="w-full justify-start bg-white text-black"
-                        >
-                            {value || 'Select…'}
-                        </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent className="bg-white text-black">
-                        {options.map((opt) => (
-                            <DropdownMenuItem key={opt} onClick={() => onChange?.(opt)}>
-                                {opt}
-                            </DropdownMenuItem>
-                        ))}
-                    </DropdownMenuContent>
-                </DropdownMenu>
-            ) : editable && date ? (
-                <Popover>
-                    <PopoverTrigger asChild>
-                        <Button
-                            variant={'outline'}
-                            className={cn(
-                                'w-full justify-start text-left font-normal bg-white text-black',
-                                !value && 'text-muted-foreground'
-                            )}
-                        >
-                            <CalendarIcon className="mr-2 h-4 w-4" />
-                            {value ? format(new Date(value), 'PPP') : 'Pick a date'}
-                        </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0 bg-white text-black shadow-lg border z-50">
-                        <Calendar
-                            mode="single"
-                            selected={selectedDate}
-                            defaultMonth={selectedDate}
-                            onSelect={(date) =>
-                                onChange?.(date?.toISOString().split('T')[0] ?? '')
-                            }
-                            initialFocus
-                        />
-                    </PopoverContent>
-                </Popover>
-            ) : editable ? (
-                <input
-                    className="border rounded px-2 py-1 text-sm w-full"
-                    value={value ?? ''}
-                    type={type}
+            {editable ? (
+                <Input
+                    className="w-full"
+                    type={date ? 'date' : type}
+                    value={value || ''}
                     onChange={(e) => onChange?.(e.target.value)}
                 />
             ) : (
@@ -154,17 +116,52 @@ export default function PatientPage() {
     const router = useRouter();
     const { getAccessTokenSilently, user } = useAuth0();
 
-    const [patient, setPatient] = useState<any | null>(null);
-    const [form, setForm] = useState<any | null>(null);
+    const [patient, setPatient] = useState<any>(null);
+    const [form, setForm] = useState<any>(null);
     const [summary, setSummary] = useState<SummaryBuckets | null>(null);
     const [loading, setLoading] = useState(true);
     const [editing, setEditing] = useState(false);
     const [saving, setSaving] = useState(false);
     const [section, setSection] = useState<Section>('home');
 
+    // ── Appointments ──
+    const [appointments, setAppointments] = useState<any[]>([]);
+    const [apptLoading, setApptLoading] = useState(true);
+
+    // Add/Edit modal state
+    const [modalOpen, setModalOpen] = useState(false);
+    const [modalMode, setModalMode] = useState<'create' | 'edit'>('create');
+    const [currentAppt, setCurrentAppt] = useState<any>(null);
+    const [apptDate, setApptDate] = useState('');
+    const [apptTime, setApptTime] = useState('');
+    const [apptType, setApptType] = useState('');
+
+    // Delete dialog state
+    const [toDeleteId, setToDeleteId] = useState<number | null>(null);
+    const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+
+    // Fetch all appointments
+    const fetchAppointments = async () => {
+        if (!patient) return;
+        try {
+            setApptLoading(true);
+            const token = await getAccessTokenSilently();
+            const res = await fetch(
+                `${API}/appointments/by-patient/${patient.id}`,
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+            if (!res.ok) throw new Error(await res.text());
+            setAppointments(await res.json());
+        } catch (e) {
+            console.error('Failed to load appointments', e);
+        } finally {
+            setApptLoading(false);
+        }
+    };
+
+    // Initial load: patient + summary
     useEffect(() => {
         if (!id) return;
-
         (async () => {
             try {
                 const token = await getAccessTokenSilently();
@@ -180,15 +177,16 @@ export default function PatientPage() {
                     last_name: data.demographics.last_name,
                     gender: data.demographics.gender,
                     dob: data.demographics.date_of_birth,
-                    ethnicity: data.demographics.ethnicity ?? '',
-                    phone: data.contact_info.phone ?? '',
-                    email: data.contact_info.email ?? '',
-                    occupation: data.social_info.occupation ?? '',
-                    address: data.social_info.address ?? '',
-                    marital_status: data.social_info.marital_status ?? '',
-                    insurance_provider: data.social_info.insurance_provider ?? '',
+                    ethnicity: data.demographics.ethnicity || '',
+                    phone: data.contact_info.phone || '',
+                    email: data.contact_info.email || '',
+                    occupation: data.social_info.occupation || '',
+                    address: data.social_info.address || '',
+                    marital_status: data.social_info.marital_status || '',
+                    insurance_provider: data.social_info.insurance_provider || '',
                 });
 
+                // --- summary mapping ---
                 setSummary({
                     follow_up_actions:
                         data.follow_up_actions?.map((x: any) => ({
@@ -239,31 +237,107 @@ export default function PatientPage() {
         })();
     }, [id, getAccessTokenSilently, router]);
 
+    // After patient loads, fetch appointments
+    useEffect(() => {
+        fetchAppointments();
+    }, [patient]);
+
+    // Open add form
+    const openCreate = () => {
+        setModalMode('create');
+        setCurrentAppt(null);
+        setApptDate('');
+        setApptTime('');
+        setApptType('');
+        setModalOpen(true);
+    };
+
+    // Open edit form
+    const openEdit = (a: any) => {
+        const dt = parseISO(a.datetime);
+        setModalMode('edit');
+        setCurrentAppt(a);
+        setApptDate(format(dt, 'yyyy-MM-dd'));
+        setApptTime(format(dt, 'HH:mm'));
+        setApptType(a.type);
+        setModalOpen(true);
+    };
+
+    // Submit add/update
+    const handleSubmitAppt = async () => {
+        try {
+            const token = await getAccessTokenSilently();
+            const iso = `${apptDate}T${apptTime}:00`;
+            const url =
+                modalMode === 'create'
+                    ? `${API}/appointments`
+                    : `${API}/appointments/${currentAppt.id}`;
+            const method = modalMode === 'create' ? 'POST' : 'PUT';
+            const body = {
+                patient_id: patient.id,
+                datetime: iso,
+                type: apptType,
+            };
+
+            const res = await fetch(url, {
+                method,
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${token}`,
+                },
+                body: JSON.stringify(body),
+            });
+            if (!res.ok) throw new Error(await res.text());
+            setModalOpen(false);
+            fetchAppointments();
+        } catch (e) {
+            console.error('Failed to save appointment', e);
+        }
+    };
+
+    // Delete appointment
+    const handleDeleteAppt = async () => {
+        if (toDeleteId === null) return;
+        try {
+            const token = await getAccessTokenSilently();
+            const res = await fetch(`${API}/appointments/${toDeleteId}`, {
+                method: 'DELETE',
+                headers: { Authorization: `Bearer ${token}` },
+            });
+            if (!res.ok) throw new Error(await res.text());
+            setDeleteDialogOpen(false);
+            setToDeleteId(null);
+            fetchAppointments();
+        } catch (e) {
+            console.error('Failed to delete appointment', e);
+        }
+    };
+
+    // Save patient info
     const handleSave = async () => {
         if (!patient) return;
         try {
             setSaving(true);
             const token = await getAccessTokenSilently();
-            const body = {
-                first_name: form.first_name,
-                last_name: form.last_name,
-                gender: form.gender,
-                dob: form.dob,
-                ethnicity: form.ethnicity,
-                phone: form.phone,
-                email: form.email,
-                occupation: form.occupation,
-                address: form.address,
-                marital_status: form.marital_status,
-                insurance_provider: form.insurance_provider,
-            };
             const res = await fetch(`${API}/patients/${patient.id}`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
                     Authorization: `Bearer ${token}`,
                 },
-                body: JSON.stringify(body),
+                body: JSON.stringify({
+                    first_name: form.first_name,
+                    last_name: form.last_name,
+                    gender: form.gender,
+                    dob: form.dob,
+                    ethnicity: form.ethnicity,
+                    phone: form.phone,
+                    email: form.email,
+                    occupation: form.occupation,
+                    address: form.address,
+                    marital_status: form.marital_status,
+                    insurance_provider: form.insurance_provider,
+                }),
             });
             if (!res.ok) throw new Error(await res.text());
             setEditing(false);
@@ -278,7 +352,7 @@ export default function PatientPage() {
         <div className="flex h-screen overflow-hidden">
             <Sidebar active={section} onChange={setSection} />
             <div className="flex-1 flex flex-col overflow-y-auto bg-gray-50">
-                <TopBar doctorName={user?.name ?? ''} />
+                <TopBar doctorName={user?.name || ''} />
 
                 <div className="px-6 pt-6 flex justify-between items-center">
                     <Link
@@ -309,135 +383,230 @@ export default function PatientPage() {
                 </div>
 
                 <main className="p-10 flex-1 overflow-y-auto">
-                    {loading && (
+                    {loading ? (
                         <div className="h-full flex items-center justify-center">
                             <Loader2 className="size-6 animate-spin text-primary" />
                         </div>
-                    )}
-
-                    {/* ── Home / Info ── */}
-                    {!loading && section === 'home' && form && (
+                    ) : section === 'home' && form ? (
                         <>
                             <h1 className="text-3xl font-bold mb-8 flex items-center gap-3">
                                 <IdCard className="size-7 text-primary" />
                                 {form.first_name} {form.last_name}
                             </h1>
-                            <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
-                                <InfoCard title="Demographics" icon={<User className="size-4" />}>
-                                    <Field
-                                        label="First Name"
-                                        value={form.first_name}
-                                        editable={editing}
-                                        onChange={(v) => setForm({ ...form, first_name: v })}
-                                    />
-                                    <Field
-                                        label="Last Name"
-                                        value={form.last_name}
-                                        editable={editing}
-                                        onChange={(v) => setForm({ ...form, last_name: v })}
-                                    />
-                                    <Field
-                                        label="Gender"
-                                        value={form.gender}
-                                        editable={editing}
-                                        onChange={(v) => setForm({ ...form, gender: v })}
-                                        options={['Male', 'Female']}
-                                    />
-                                    <Field
-                                        label="DOB"
-                                        value={form.dob}
-                                        editable={editing}
-                                        onChange={(v) => setForm({ ...form, dob: v })}
-                                        date
-                                    />
-                                    <Field
-                                        label="Ethnicity"
-                                        value={form.ethnicity}
-                                        editable={editing}
-                                        onChange={(v) => setForm({ ...form, ethnicity: v })}
-                                    />
-                                </InfoCard>
 
-                                <InfoCard title="Contact" icon={<Phone className="size-4" />}>
-                                    <Field
-                                        label="Phone"
-                                        value={form.phone}
-                                        editable={editing}
-                                        onChange={(v) => setForm({ ...form, phone: v })}
-                                    />
-                                    <Field
-                                        label="Email"
-                                        value={form.email}
-                                        editable={editing}
-                                        onChange={(v) => setForm({ ...form, email: v })}
-                                    />
-                                </InfoCard>
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                                {/* LEFT: Info cards */}
+                                <div className="space-y-8">
+                                    <InfoCard title="Demographics" icon={<User className="size-4" />}>
+                                        <Field
+                                            label="First Name"
+                                            value={form.first_name}
+                                            editable={editing}
+                                            onChange={(v) => setForm({ ...form, first_name: v })}
+                                        />
+                                        <Field
+                                            label="Last Name"
+                                            value={form.last_name}
+                                            editable={editing}
+                                            onChange={(v) => setForm({ ...form, last_name: v })}
+                                        />
+                                        <Field
+                                            label="Gender"
+                                            value={form.gender}
+                                            editable={editing}
+                                            onChange={(v) => setForm({ ...form, gender: v })}
+                                        />
+                                        <Field
+                                            label="DOB"
+                                            value={form.dob}
+                                            editable={editing}
+                                            onChange={(v) => setForm({ ...form, dob: v })}
+                                            date
+                                        />
+                                        <Field
+                                            label="Ethnicity"
+                                            value={form.ethnicity}
+                                            editable={editing}
+                                            onChange={(v) => setForm({ ...form, ethnicity: v })}
+                                        />
+                                    </InfoCard>
 
-                                <InfoCard title="Social & Insurance" icon={<Heart className="size-4" />}>
-                                    <Field
-                                        label="Occupation"
-                                        value={form.occupation}
-                                        editable={editing}
-                                        onChange={(v) => setForm({ ...form, occupation: v })}
-                                    />
-                                    <Field
-                                        label="Address"
-                                        value={form.address}
-                                        editable={editing}
-                                        onChange={(v) => setForm({ ...form, address: v })}
-                                    />
-                                    <Field
-                                        label="Marital Status"
-                                        value={form.marital_status}
-                                        editable={editing}
-                                        onChange={(v) => setForm({ ...form, marital_status: v })}
-                                    />
-                                    <Field
-                                        label="Insurance Provider"
-                                        value={form.insurance_provider}
-                                        editable={editing}
-                                        onChange={(v) => setForm({ ...form, insurance_provider: v })}
-                                    />
-                                </InfoCard>
+                                    <InfoCard title="Contact" icon={<Phone className="size-4" />}>
+                                        <Field
+                                            label="Phone"
+                                            value={form.phone}
+                                            editable={editing}
+                                            onChange={(v) => setForm({ ...form, phone: v })}
+                                        />
+                                        <Field
+                                            label="Email"
+                                            value={form.email}
+                                            editable={editing}
+                                            onChange={(v) => setForm({ ...form, email: v })}
+                                        />
+                                    </InfoCard>
+
+                                    <InfoCard title="Social & Insurance" icon={<Heart className="size-4" />}>
+                                        <Field
+                                            label="Occupation"
+                                            value={form.occupation}
+                                            editable={editing}
+                                            onChange={(v) => setForm({ ...form, occupation: v })}
+                                        />
+                                        <Field
+                                            label="Address"
+                                            value={form.address}
+                                            editable={editing}
+                                            onChange={(v) => setForm({ ...form, address: v })}
+                                        />
+                                        <Field
+                                            label="Marital Status"
+                                            value={form.marital_status}
+                                            editable={editing}
+                                            onChange={(v) => setForm({ ...form, marital_status: v })}
+                                        />
+                                        <Field
+                                            label="Insurance Provider"
+                                            value={form.insurance_provider}
+                                            editable={editing}
+                                            onChange={(v) => setForm({ ...form, insurance_provider: v })}
+                                        />
+                                    </InfoCard>
+                                </div>
+
+                                {/* RIGHT: Appointments */}
+                                <div>
+                                    <div className="rounded-xl border shadow-sm bg-white flex flex-col">
+                                        <header className="flex items-center justify-between px-5 py-3 border-b bg-gray-50">
+                                            <h3 className="text-sm font-medium text-primary">
+                                                Appointments
+                                            </h3>
+                                            <Button variant="outline" size="sm" onClick={openCreate}>
+                                                + Add
+                                            </Button>
+                                        </header>
+                                        <div className="px-5 py-4 space-y-4 max-h-[500px] overflow-y-auto">
+                                            {apptLoading ? (
+                                                <div className="flex justify-center py-10">
+                                                    <Loader2 className="animate-spin text-primary size-8" />
+                                                </div>
+                                            ) : appointments.length > 0 ? (
+                                                appointments.map((a) => {
+                                                    const dt = parseISO(a.datetime);
+                                                    const status = isToday(dt)
+                                                        ? 'today'
+                                                        : isFuture(dt)
+                                                            ? 'upcoming'
+                                                            : 'overdue';
+                                                    const dateStr = format(dt, 'PPP p');
+                                                    const badgeClasses = cn(
+                                                        'px-2 py-1 rounded-full text-xs',
+                                                        status === 'today'
+                                                            ? 'bg-yellow-100 text-yellow-800'
+                                                            : status === 'upcoming'
+                                                                ? 'bg-green-100 text-green-800'
+                                                                : 'bg-red-100 text-red-800'
+                                                    );
+
+                                                    return (
+                                                        <div
+                                                            key={a.id}
+                                                            className="group flex justify-between items-center p-4 hover:bg-gray-50 rounded-lg transition-colors"
+                                                        >
+                                                            <div>
+                                                                <p className="font-medium">{dateStr}</p>
+                                                                <p className="text-sm text-gray-500 capitalize">
+                                                                    {a.type}
+                                                                </p>
+                                                            </div>
+                                                            <div className="flex items-center gap-2">
+                                                                <span className={badgeClasses}>{status}</span>
+                                                                {status !== 'overdue' && (
+                                                                    <>
+                                                                        <Pencil
+                                                                            className="size-4 text-gray-400 hover:text-primary cursor-pointer"
+                                                                            onClick={() => openEdit(a)}
+                                                                        />
+                                                                        <AlertDialog
+                                                                            open={deleteDialogOpen && toDeleteId === a.id}
+                                                                            onOpenChange={setDeleteDialogOpen}
+                                                                        >
+                                                                            <AlertDialogTrigger asChild>
+                                                                                <Trash2
+                                                                                    className="size-4 text-gray-400 hover:text-red-600 cursor-pointer"
+                                                                                    onClick={() => {
+                                                                                        setToDeleteId(a.id);
+                                                                                        setDeleteDialogOpen(true);
+                                                                                    }}
+                                                                                />
+                                                                            </AlertDialogTrigger>
+
+                                                                            <AlertDialogPortal>
+                                                                                <AlertDialogOverlay className="bg-white/50 backdrop-blur-sm fixed inset-0 z-50" />
+                                                                                <AlertDialogContent className="fixed z-50 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 max-w-sm bg-white rounded-2xl p-8 shadow-xl">
+                                                                                    <AlertDialogHeader>
+                                                                                        <AlertDialogTitle>
+                                                                                            Delete Appointment
+                                                                                        </AlertDialogTitle>
+                                                                                        <AlertDialogDescription>
+                                                                                            Are you sure you want to delete the
+                                                                                            appointment scheduled on{' '}
+                                                                                            <strong>{dateStr}</strong>?
+                                                                                        </AlertDialogDescription>
+                                                                                    </AlertDialogHeader>
+                                                                                    <AlertDialogFooter className="mt-4 flex justify-end gap-2">
+                                                                                        <AlertDialogCancel>
+                                                                                            Cancel
+                                                                                        </AlertDialogCancel>
+                                                                                        <AlertDialogAction onClick={handleDeleteAppt}>
+                                                                                            Delete
+                                                                                        </AlertDialogAction>
+                                                                                    </AlertDialogFooter>
+                                                                                </AlertDialogContent>
+                                                                            </AlertDialogPortal>
+                                                                        </AlertDialog>
+                                                                    </>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })
+                                            ) : (
+                                                <p className="italic text-gray-500">No appointments</p>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </>
-                    )}
-
-                    {/* ── Symptoms ── */}
-                    {!loading && patient && section === 'symptoms' && (
+                    ) : section === 'symptoms' ? (
                         <SymptomsSection
                             patientId={patient.id}
                             patientName={`${patient.demographics.first_name} ${patient.demographics.last_name}`}
                         />
-                    )}
-
-                    {/* ── Personal History ── */}
-                    {!loading && patient && section === 'history' && (
+                    ) : section === 'history' ? (
                         <PersonalHistorySection
                             patientId={patient.id}
                             patientName={`${patient.demographics.first_name} ${patient.demographics.last_name}`}
                         />
-                    )}
-
-                    {/* ── Vital Signs ── */}
-                    {!loading && patient && section === 'vitals' && (
+                    ) : section === 'vitals' ? (
                         <VitalSignsSection
                             patientId={patient.id}
                             patientName={`${patient.demographics.first_name} ${patient.demographics.last_name}`}
                         />
-                    )}
-
-                    {/* ── Tests ── */}
-                    {!loading && patient && section === 'tests' && (
+                    ) : section === 'tests' ? (
                         <TestsSection
                             patientId={patient.id}
                             patientName={`${patient.demographics.first_name} ${patient.demographics.last_name}`}
                         />
-                    )}
-
-                    {/* ── Summary ── */}
-                    {!loading && section === 'summary' && summary && (
+                    ) : section === 'summary' && summary ? (
                         <>
+                            <div className="flex justify-end mb-4">
+                                <ExportPdfButton
+                                    patient={patient}
+                                    doctorName={user?.name || ''}
+                                />
+                            </div>
                             <h1 className="text-3xl font-bold mb-8">
                                 Summary for{' '}
                                 <span className="text-primary">
@@ -446,17 +615,61 @@ export default function PatientPage() {
                             </h1>
                             <SummaryPanel {...summary} />
                         </>
+                    ) : (
+                        <div className="h-full flex items-center justify-center text-gray-400 italic">
+                            This section is coming soon…
+                        </div>
                     )}
 
-                    {/* ── Coming Soon ── */}
-                    {!loading &&
-                        !['home', 'symptoms', 'history', 'vitals', 'tests', 'summary'].includes(
-                            section
-                        ) && (
-                            <div className="h-full flex items-center justify-center text-gray-400 italic">
-                                This section is coming soon…
+                    {/* ── Add/Edit Appointment Dialog ── */}
+                    <Dialog open={modalOpen} onOpenChange={setModalOpen}>
+                        <DialogContent className="max-h-[92vh] sm:max-w-md overflow-y-auto rounded-2xl bg-white p-8 shadow-xl">
+                            <DialogHeader>
+                                <DialogTitle className="text-xl font-bold">
+                                    {modalMode === 'create'
+                                        ? 'Add Appointment'
+                                        : 'Edit Appointment'}
+                                </DialogTitle>
+                            </DialogHeader>
+                            <div className="space-y-4 py-2">
+                                <div className="space-y-1">
+                                    <Label htmlFor="appt-date">Date</Label>
+                                    <Input
+                                        id="appt-date"
+                                        type="date"
+                                        value={apptDate}
+                                        onChange={(e) => setApptDate(e.target.value)}
+                                    />
+                                </div>
+                                <div className="space-y-1">
+                                    <Label htmlFor="appt-time">Time</Label>
+                                    <Input
+                                        id="appt-time"
+                                        type="time"
+                                        value={apptTime}
+                                        onChange={(e) => setApptTime(e.target.value)}
+                                    />
+                                </div>
+                                <div className="space-y-1">
+                                    <Label htmlFor="appt-type">Type</Label>
+                                    <Input
+                                        id="appt-type"
+                                        placeholder="e.g. visit, phone, echo…"
+                                        value={apptType}
+                                        onChange={(e) => setApptType(e.target.value)}
+                                    />
+                                </div>
                             </div>
-                        )}
+                            <DialogFooter className="flex justify-end gap-2">
+                                <Button variant="outline" onClick={() => setModalOpen(false)}>
+                                    Cancel
+                                </Button>
+                                <Button onClick={handleSubmitAppt}>
+                                    {modalMode === 'create' ? 'Create' : 'Save'}
+                                </Button>
+                            </DialogFooter>
+                        </DialogContent>
+                    </Dialog>
                 </main>
             </div>
         </div>

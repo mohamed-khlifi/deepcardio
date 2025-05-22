@@ -57,14 +57,14 @@ export function VitalSignsSection({
                 setLoading(true);
                 const token = await getAccessTokenSilently();
 
-                // 1) Load the dictionary of vital signs
+                // 1) Full dictionary
                 const dictRes = await fetch(`${API}/vital-signs/dict`, {
                     headers: { Authorization: `Bearer ${token}` },
                 });
                 if (!dictRes.ok) throw new Error(await dictRes.text());
                 const dictData: VitalSignDict[] = await dictRes.json();
 
-                // 2) Load this patient’s existing vital sign records
+                // 2) This patient’s most recent records
                 const patRes = await fetch(
                     `${API}/vital-signs/by-patient/${patientId}`,
                     { headers: { Authorization: `Bearer ${token}` } }
@@ -72,9 +72,9 @@ export function VitalSignsSection({
                 if (!patRes.ok) throw new Error(await patRes.text());
                 const patData: PatientVitalSign[] = await patRes.json();
 
-                // Build a map of the *latest* record per vital_sign_id
+                // Build a map of the latest entry per vital_sign_id
                 const recMap = new Map<number, { measurement_date: string; value: string }>();
-                patData.forEach((r) => {
+                patData.forEach(r => {
                     const prev = recMap.get(r.vital_sign_id);
                     if (
                         !prev ||
@@ -87,9 +87,9 @@ export function VitalSignsSection({
                     }
                 });
 
-                // Initialize our local value map
+                // Initialize values map
                 const valMap = new Map<number, string>();
-                dictData.forEach((v) => {
+                dictData.forEach(v => {
                     valMap.set(v.vital_sign_id, recMap.get(v.vital_sign_id)?.value ?? '');
                 });
 
@@ -104,7 +104,7 @@ export function VitalSignsSection({
         })();
     }, [patientId, getAccessTokenSilently]);
 
-    // When you blur out of an input, POST (if new) or PUT (if existing)
+    // On blur: create or update
     const handleBlur = async (id: number) => {
         try {
             const token = await getAccessTokenSilently();
@@ -112,7 +112,7 @@ export function VitalSignsSection({
             const rec = records.get(id);
 
             if (rec) {
-                // Update existing
+                // Update
                 const res = await fetch(`${API}/vital-signs`, {
                     method: 'PUT',
                     headers: {
@@ -127,7 +127,6 @@ export function VitalSignsSection({
                     }),
                 });
                 if (!res.ok) throw new Error(await res.text());
-                // Reflect locally
                 rec.value = val;
                 setRecords(new Map(records));
             } else {
@@ -147,7 +146,6 @@ export function VitalSignsSection({
                     }),
                 });
                 if (!res.ok) throw new Error(await res.text());
-                // Add to map
                 records.set(id, { measurement_date: today, value: val });
                 setRecords(new Map(records));
             }
@@ -156,13 +154,13 @@ export function VitalSignsSection({
         }
     };
 
-    // Group by category just as we did for symptoms
+    // Group by category
     const byCategory = Array.from(
-        dict.reduce<Map<string, VitalSignDict[]>>((m, v) => {
+        dict.reduce<Map<string, VitalSignDict[]>>((map, v) => {
             const cat = v.category ?? 'Other';
-            if (!m.has(cat)) m.set(cat, []);
-            m.get(cat)!.push(v);
-            return m;
+            if (!map.has(cat)) map.set(cat, []);
+            map.get(cat)!.push(v);
+            return map;
         }, new Map())
     );
 
@@ -170,7 +168,8 @@ export function VitalSignsSection({
         <section className="flex justify-center">
             <div className="w-full max-w-4xl space-y-6">
                 <h2 className="text-2xl font-semibold mb-2 text-center">
-                    Vital Signs for <span className="text-primary">{patientName}</span>
+                    Vital Signs for{' '}
+                    <span className="text-primary">{patientName}</span>
                 </h2>
 
                 {loading ? (
@@ -186,11 +185,11 @@ export function VitalSignsSection({
                                         <CardTitle className="text-lg">{category}</CardTitle>
                                     </CardHeader>
 
-                                    {/* fixed-height scrollable region */}
+                                    {/* fixed-height scroll area */}
                                     <ScrollArea className="h-[300px]">
                                         <ScrollAreaViewport>
                                             <CardContent className="p-0 divide-y divide-gray-100">
-                                                {vits.map((v) => (
+                                                {vits.map(v => (
                                                     <div
                                                         key={v.vital_sign_id}
                                                         className="flex items-center justify-between py-3 px-4 hover:bg-gray-50 transition-colors"
@@ -210,7 +209,7 @@ export function VitalSignsSection({
                                                         <Input
                                                             id={`vital-${v.vital_sign_id}`}
                                                             value={values.get(v.vital_sign_id) ?? ''}
-                                                            onChange={(e) => {
+                                                            onChange={e => {
                                                                 values.set(v.vital_sign_id, e.target.value);
                                                                 setValues(new Map(values));
                                                             }}

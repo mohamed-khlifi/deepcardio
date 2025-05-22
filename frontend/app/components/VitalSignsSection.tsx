@@ -53,8 +53,8 @@ export function VitalSignsSection({
 
     useEffect(() => {
         (async () => {
+            setLoading(true);
             try {
-                setLoading(true);
                 const token = await getAccessTokenSilently();
 
                 // 1) Full dictionary
@@ -73,8 +73,11 @@ export function VitalSignsSection({
                 const patData: PatientVitalSign[] = await patRes.json();
 
                 // Build a map of the latest entry per vital_sign_id
-                const recMap = new Map<number, { measurement_date: string; value: string }>();
-                patData.forEach(r => {
+                const recMap = new Map<
+                    number,
+                    { measurement_date: string; value: string }
+                >();
+                patData.forEach((r) => {
                     const prev = recMap.get(r.vital_sign_id);
                     if (
                         !prev ||
@@ -89,7 +92,7 @@ export function VitalSignsSection({
 
                 // Initialize values map
                 const valMap = new Map<number, string>();
-                dictData.forEach(v => {
+                dictData.forEach((v) => {
                     valMap.set(v.vital_sign_id, recMap.get(v.vital_sign_id)?.value ?? '');
                 });
 
@@ -104,7 +107,7 @@ export function VitalSignsSection({
         })();
     }, [patientId, getAccessTokenSilently]);
 
-    // On blur: create or update
+    // On blur: create, update, or delete
     const handleBlur = async (id: number) => {
         try {
             const token = await getAccessTokenSilently();
@@ -112,25 +115,46 @@ export function VitalSignsSection({
             const rec = records.get(id);
 
             if (rec) {
-                // Update
-                const res = await fetch(`${API}/vital-signs`, {
-                    method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        Authorization: `Bearer ${token}`,
-                    },
-                    body: JSON.stringify({
-                        patient_id: patientId,
-                        vital_sign_id: id,
-                        measurement_date: rec.measurement_date,
-                        new_value: val,
-                    }),
-                });
-                if (!res.ok) throw new Error(await res.text());
-                rec.value = val;
-                setRecords(new Map(records));
-            } else {
-                // Create new for today
+                if (val === '') {
+                    // DELETE if cleared
+                    const res = await fetch(`${API}/vital-signs`, {
+                        method: 'DELETE',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            Authorization: `Bearer ${token}`,
+                        },
+                        body: JSON.stringify({
+                            patient_id: patientId,
+                            vital_sign_id: id,
+                        }),
+                    });
+                    if (!res.ok) throw new Error(await res.text());
+                    // Remove record and clear value
+                    records.delete(id);
+                    setRecords(new Map(records));
+                    values.set(id, '');
+                    setValues(new Map(values));
+                } else {
+                    // UPDATE existing
+                    const res = await fetch(`${API}/vital-signs`, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            Authorization: `Bearer ${token}`,
+                        },
+                        body: JSON.stringify({
+                            patient_id: patientId,
+                            vital_sign_id: id,
+                            measurement_date: rec.measurement_date,
+                            new_value: val,
+                        }),
+                    });
+                    if (!res.ok) throw new Error(await res.text());
+                    rec.value = val;
+                    setRecords(new Map(records));
+                }
+            } else if (val !== '') {
+                // CREATE new for today
                 const today = new Date().toISOString().split('T')[0];
                 const res = await fetch(`${API}/vital-signs`, {
                     method: 'POST',
@@ -150,7 +174,7 @@ export function VitalSignsSection({
                 setRecords(new Map(records));
             }
         } catch (err) {
-            console.error('Failed to save vital sign', err);
+            console.error('Failed to save or delete vital sign', err);
         }
     };
 
@@ -168,8 +192,7 @@ export function VitalSignsSection({
         <section className="flex justify-center">
             <div className="w-full max-w-4xl space-y-6">
                 <h2 className="text-2xl font-semibold mb-2 text-center">
-                    Vital Signs for{' '}
-                    <span className="text-primary">{patientName}</span>
+                    Vital Signs for <span className="text-primary">{patientName}</span>
                 </h2>
 
                 {loading ? (
@@ -189,7 +212,7 @@ export function VitalSignsSection({
                                     <ScrollArea className="h-[300px]">
                                         <ScrollAreaViewport>
                                             <CardContent className="p-0 divide-y divide-gray-100">
-                                                {vits.map(v => (
+                                                {vits.map((v) => (
                                                     <div
                                                         key={v.vital_sign_id}
                                                         className="flex items-center justify-between py-3 px-4 hover:bg-gray-50 transition-colors"
@@ -202,14 +225,14 @@ export function VitalSignsSection({
                                                                 {v.name}
                                                             </Label>
                                                             <span className="block text-xs text-gray-500">
-                                {v.unit}
+                                {v.unit ?? ''}
                               </span>
                                                         </div>
 
                                                         <Input
                                                             id={`vital-${v.vital_sign_id}`}
                                                             value={values.get(v.vital_sign_id) ?? ''}
-                                                            onChange={e => {
+                                                            onChange={(e) => {
                                                                 values.set(v.vital_sign_id, e.target.value);
                                                                 setValues(new Map(values));
                                                             }}

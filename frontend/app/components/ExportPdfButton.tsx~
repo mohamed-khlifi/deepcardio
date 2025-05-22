@@ -1,0 +1,297 @@
+// File: app/components/ExportPdfButton.tsx
+'use client';
+
+import React from 'react';
+import { Button } from '@/components/ui/button';
+import { Download } from 'lucide-react';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import { format } from 'date-fns';
+
+interface ExportPdfButtonProps {
+    patient: any;
+    doctorName: string;
+}
+
+export function ExportPdfButton({ patient, doctorName }: ExportPdfButtonProps) {
+    const handleExport = async () => {
+        const doc = new jsPDF('p', 'mm', 'a4');
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const margin = 14;
+
+        // ── Draw centered logo at top ──
+        const logoUrl = '/images/deepcardio_logo.png';
+        const resp = await fetch(logoUrl);
+        const blob = await resp.blob();
+        const imgData: string = await new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result as string);
+            reader.readAsDataURL(blob);
+        });
+        const logoWidth = 50;
+        const logoHeight = 20;
+        const logoX = (pageWidth - logoWidth) / 2;
+        doc.addImage(imgData, 'PNG', logoX, 8, logoWidth, logoHeight);
+
+        // ── Header and date ──
+        const headerY = 8 + logoHeight + 6; // just below logo
+        doc.setFontSize(18);
+        doc.text('Patient Report', margin, headerY);
+
+        doc.setFontSize(12);
+        // Doctor name on left
+        doc.text(`Doctor: ${doctorName}`, margin, headerY + 8);
+        // Date on right
+        doc.text(
+            `Date: ${format(new Date(), 'PPP')}`,
+            pageWidth - margin,
+            headerY + 8,
+            { align: 'right' }
+        );
+
+        // ── Pull all patient data ──
+        const {
+            demographics,
+            contact_info,
+            social_info,
+            symptoms,
+            personal_history,
+            vital_signs,
+            tests,
+            follow_up_actions,
+            recommendations,
+            referrals,
+            risks,
+            life_style_advice,
+            presumptive_diagnoses,
+            tests_to_order,
+        } = patient;
+
+        // start content below header
+        let cursorY = headerY + 16;
+
+        // helper to move cursorY after each table
+        const advance = () => {
+            cursorY = (doc as any).lastAutoTable.finalY + 10;
+        };
+
+        // ── DEMOGRAPHICS ──
+        autoTable(doc, {
+            startY: cursorY,
+            head: [['Field', 'Value']],
+            body: [
+                ['First Name', demographics.first_name],
+                ['Last Name', demographics.last_name],
+                ['Gender', demographics.gender],
+                ['Date of Birth', demographics.date_of_birth],
+                ['Age', String(demographics.age)],
+                ['Ethnicity', demographics.ethnicity || '—'],
+            ],
+            theme: 'grid',
+            headStyles: { fillColor: [230, 230, 250] },
+            styles: { fontSize: 10 },
+        });
+        advance();
+
+        // ── CONTACT INFO ──
+        doc.setFontSize(14);
+        doc.text('Contact Info', margin, cursorY);
+        autoTable(doc, {
+            startY: cursorY + 4,
+            head: [['Phone', 'Email']],
+            body: [[contact_info.phone || '—', contact_info.email || '—']],
+            theme: 'grid',
+            headStyles: { fillColor: [230, 230, 250] },
+            styles: { fontSize: 10 },
+        });
+        advance();
+
+        // ── SOCIAL & INSURANCE ──
+        doc.setFontSize(14);
+        doc.text('Social & Insurance', margin, cursorY);
+        autoTable(doc, {
+            startY: cursorY + 4,
+            head: [['Occupation', 'Address', 'Marital Status', 'Insurance']],
+            body: [[
+                social_info.occupation || '—',
+                social_info.address || '—',
+                social_info.marital_status || '—',
+                social_info.insurance_provider || '—',
+            ]],
+            theme: 'grid',
+            headStyles: { fillColor: [230, 230, 250] },
+            styles: { fontSize: 10 },
+        });
+        advance();
+
+        // ── SYMPTOMS ──
+        doc.setFontSize(14);
+        doc.text('Symptoms', margin, cursorY);
+        autoTable(doc, {
+            startY: cursorY + 4,
+            head: [['Category', 'Symptom']],
+            body: symptoms.map((s: any) => [
+                s.category || 'Other',
+                s.name
+            ]),
+            theme: 'striped',
+            headStyles: { fillColor: [200, 230, 201] },
+            styles: { fontSize: 9 },
+        });
+        advance();
+
+        // ── PERSONAL HISTORY ──
+        doc.setFontSize(14);
+        doc.text('Personal History', margin, cursorY);
+        autoTable(doc, {
+            startY: cursorY + 4,
+            head: [['History Item']],
+            body: personal_history.map((h: any) => [h.name]),
+            theme: 'striped',
+            headStyles: { fillColor: [200, 230, 201] },
+            styles: { fontSize: 9 },
+        });
+        advance();
+
+        // ── VITAL SIGNS ──
+        doc.setFontSize(14);
+        doc.text('Vital Signs', margin, cursorY);
+        autoTable(doc, {
+            startY: cursorY + 4,
+            head: [['Category', 'Name', 'Value', 'Unit']],
+            body: vital_signs.map((v: any) => [
+                v.category || 'Other',
+                v.name,
+                v.value,
+                v.unit || '—',
+            ]),
+            theme: 'striped',
+            headStyles: { fillColor: [200, 230, 201] },
+            styles: { fontSize: 9 },
+        });
+        advance();
+
+        // ── TEST RESULTS ──
+        doc.setFontSize(14);
+        doc.text('Test Results', margin, cursorY);
+        autoTable(doc, {
+            startY: cursorY + 4,
+            head: [['Date', 'Test', 'Value', 'Unit', 'Notes']],
+            body: tests.map((t: any) => [
+                t.date,
+                t.name,
+                t.value,
+                t.unit || '—',
+                t.notes || '—',
+            ]),
+            theme: 'striped',
+            headStyles: { fillColor: [200, 230, 201] },
+            styles: { fontSize: 9 },
+        });
+        advance();
+
+        // ── FOLLOW-UP ACTIONS ──
+        doc.setFontSize(14);
+        doc.text('Follow-up Actions', margin, cursorY);
+        autoTable(doc, {
+            startY: cursorY + 4,
+            head: [['Action', 'Interval']],
+            body: follow_up_actions.map((f: any) => [f.action, f.interval]),
+            theme: 'striped',
+            headStyles: { fillColor: [255, 224, 178] },
+            styles: { fontSize: 9 },
+        });
+        advance();
+
+        // ── RECOMMENDATIONS ──
+        doc.setFontSize(14);
+        doc.text('Recommendations', margin, cursorY);
+        autoTable(doc, {
+            startY: cursorY + 4,
+            head: [['Recommendation']],
+            body: recommendations.map((r: any) => [r.recommendation]),
+            theme: 'striped',
+            headStyles: { fillColor: [255, 224, 178] },
+            styles: { fontSize: 9 },
+        });
+        advance();
+
+        // ── REFERRALS ──
+        doc.setFontSize(14);
+        doc.text('Referrals', margin, cursorY);
+        autoTable(doc, {
+            startY: cursorY + 4,
+            head: [['Specialist', 'Reason']],
+            body: referrals.map((r: any) => [r.specialist, r.reason]),
+            theme: 'striped',
+            headStyles: { fillColor: [255, 224, 178] },
+            styles: { fontSize: 9 },
+        });
+        advance();
+
+        // ── RISKS ──
+        doc.setFontSize(14);
+        doc.text('Risks', margin, cursorY);
+        autoTable(doc, {
+            startY: cursorY + 4,
+            head: [['Risk', 'Reason']],
+            body: risks.map((r: any) => [r.value, r.reason]),
+            theme: 'striped',
+            headStyles: { fillColor: [255, 224, 178] },
+            styles: { fontSize: 9 },
+        });
+        advance();
+
+        // ── LIFESTYLE ADVICE ──
+        doc.setFontSize(14);
+        doc.text('Lifestyle Advice', margin, cursorY);
+        autoTable(doc, {
+            startY: cursorY + 4,
+            head: [['Advice']],
+            body: life_style_advice.map((a: any) => [a.advice]),
+            theme: 'striped',
+            headStyles: { fillColor: [255, 224, 178] },
+            styles: { fontSize: 9 },
+        });
+        advance();
+
+        // ── PRESUMPTIVE DIAGNOSES ──
+        doc.setFontSize(14);
+        doc.text('Presumptive Diagnoses', margin, cursorY);
+        autoTable(doc, {
+            startY: cursorY + 4,
+            head: [['Diagnosis', 'Confidence']],
+            body: presumptive_diagnoses.map((d: any) => [
+                d.diagnosis_name,
+                d.confidence_level,
+            ]),
+            theme: 'striped',
+            headStyles: { fillColor: [255, 224, 178] },
+            styles: { fontSize: 9 },
+        });
+        advance();
+
+        // ── TESTS TO ORDER ──
+        doc.setFontSize(14);
+        doc.text('Tests to Order', margin, cursorY);
+        autoTable(doc, {
+            startY: cursorY + 4,
+            head: [['Test to Order']],
+            body: tests_to_order.map((t: any) => [t.test_to_order]),
+            theme: 'striped',
+            headStyles: { fillColor: [255, 224, 178] },
+            styles: { fontSize: 9 },
+        });
+
+        // ── Save PDF ──
+        const filename = `${demographics.first_name}_${demographics.last_name}_report.pdf`;
+        doc.save(filename);
+    };
+
+    return (
+        <Button onClick={handleExport} className="mb-4 self-end">
+            <Download className="mr-2 h-4 w-4" />
+            Export PDF
+        </Button>
+    );
+}
