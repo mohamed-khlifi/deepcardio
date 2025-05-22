@@ -65,17 +65,13 @@ export function TestsSection({
                 const patRes = await fetch(`${API}/tests/by-patient/${patientId}`, {
                     headers: { Authorization: `Bearer ${token}` },
                 });
-                // 404 if none, but we'll treat that as empty
                 const patData: PatientTest[] = patRes.ok ? await patRes.json() : [];
 
                 // Reduce to latest per test_id
                 const latestMap: Record<string, PatientTest> = {};
                 patData.forEach((rec) => {
                     const prev = latestMap[rec.test_id];
-                    if (
-                        !prev ||
-                        new Date(rec.test_date) > new Date(prev.test_date)
-                    ) {
+                    if (!prev || new Date(rec.test_date) > new Date(prev.test_date)) {
                         latestMap[rec.test_id] = rec;
                     }
                 });
@@ -96,25 +92,47 @@ export function TestsSection({
             const existing = patientTests[testId];
 
             if (existing) {
-                // Update existing test result
-                const res = await fetch(`${API}/tests`, {
-                    method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        Authorization: `Bearer ${token}`,
-                    },
-                    body: JSON.stringify({
-                        patient_id: patientId,
-                        test_id: testId,
-                        new_result_value: newValue,
-                    }),
-                });
-                if (!res.ok) throw new Error(await res.text());
-                setPatientTests((prev) => ({
-                    ...prev,
-                    [testId]: { ...prev[testId], result_value: newValue },
-                }));
-            } else {
+                if (newValue === '') {
+                    // If cleared, delete the record entirely
+                    const res = await fetch(`${API}/tests`, {
+                        method: 'DELETE',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            Authorization: `Bearer ${token}`,
+                        },
+                        body: JSON.stringify({
+                            patient_id: patientId,
+                            test_id: testId,
+                        }),
+                    });
+                    if (!res.ok) throw new Error(await res.text());
+                    // Remove from local state
+                    setPatientTests((prev) => {
+                        const copy = { ...prev };
+                        delete copy[testId];
+                        return copy;
+                    });
+                } else {
+                    // Update existing test result
+                    const res = await fetch(`${API}/tests`, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            Authorization: `Bearer ${token}`,
+                        },
+                        body: JSON.stringify({
+                            patient_id: patientId,
+                            test_id: testId,
+                            new_result_value: newValue,
+                        }),
+                    });
+                    if (!res.ok) throw new Error(await res.text());
+                    setPatientTests((prev) => ({
+                        ...prev,
+                        [testId]: { ...prev[testId], result_value: newValue },
+                    }));
+                }
+            } else if (newValue !== '') {
                 // Create a new test record for today
                 const today = new Date().toISOString().split('T')[0];
                 const res = await fetch(`${API}/tests`, {
@@ -139,7 +157,7 @@ export function TestsSection({
                 }));
             }
         } catch (err) {
-            console.error('Failed to save test result', err);
+            console.error('Failed to save or delete test result', err);
         }
     };
 
