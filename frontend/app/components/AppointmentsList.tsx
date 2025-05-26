@@ -60,7 +60,7 @@ export function AppointmentsList() {
                 );
 
                 // 3) filter to today
-                const today = new Date().toISOString().split('T')[0];
+                const today = new Date().toLocaleDateString('en-CA');
                 setAppointments(
                     enriched.filter((a) => a.datetime.split('T')[0] === today)
                 );

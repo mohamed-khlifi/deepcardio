@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth0 } from '@auth0/auth0-react';
@@ -14,6 +14,7 @@ import { SymptomsSection } from '@/app/components/SymptomsSection';
 import { PersonalHistorySection } from '@/app/components/PersonalHistorySection';
 import { VitalSignsSection } from '@/app/components/VitalSignsSection';
 import { TestsSection } from '@/app/components/TestsSection';
+import { RiskSummaryComponent } from "@/app/components/RiskSummaryComponent";
 
 import {
     User,
@@ -53,7 +54,94 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 
+import { summarizeRisks, type RiskSummary } from '@/lib/llm';
+
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8001/api/v1';
+
+/** Map API payload into React state **/
+function hydrateFromPayload(
+    payload: any,
+    setters: {
+        setPatient: (d: any) => void;
+        setForm: (d: any) => void;
+        setSummary: (d: any) => void;
+    }
+) {
+    const { setPatient, setForm, setSummary } = setters;
+
+    setPatient(payload);
+    setForm({
+        first_name: payload.demographics.first_name,
+        last_name: payload.demographics.last_name,
+        gender: payload.demographics.gender,
+        dob: payload.demographics.date_of_birth,
+        ethnicity: payload.demographics.ethnicity || '',
+        phone: payload.contact_info.phone || '',
+        email: payload.contact_info.email || '',
+        occupation: payload.social_info.occupation || '',
+        address: payload.social_info.address || '',
+        marital_status: payload.social_info.marital_status || '',
+        insurance_provider: payload.social_info.insurance_provider || '',
+    });
+
+    setSummary({
+        follow_up_actions:
+            payload.follow_up_actions?.map((x: any) => ({
+                id: x.id,
+                label: x.action,
+                extra: x.interval,
+            })) ?? [],
+        recommendations:
+            payload.recommendations?.map((x: any) => ({
+                id: x.id,
+                label: x.recommendation,
+            })) ?? [],
+        referrals:
+            payload.referrals?.map((x: any) => ({
+                id: x.id,
+                label: x.specialist,
+                extra: x.reason,
+            })) ?? [],
+        life_style_advice:
+            payload.life_style_advice?.map((x: any) => ({
+                id: x.id,
+                label: x.advice,
+            })) ?? [],
+        presumptive_diagnoses:
+            payload.presumptive_diagnoses?.map((x: any) => ({
+                id: x.id,
+                label: x.diagnosis_name,
+                extra: x.confidence_level,
+            })) ?? [],
+        tests_to_order:
+            payload.tests_to_order?.map((x: any) => ({
+                id: x.id,
+                label: x.test_to_order,
+            })) ?? [],
+        // risk_summary will be injected after LLM runs
+    } as SummaryBuckets);
+}
+
+/** Hook to fetch a patient by ID **/
+const usePatientLoader = (
+    getAccessTokenSilently: () => Promise<string>,
+    router: any,
+    id: string
+) =>
+    useCallback(async () => {
+        try {
+            const token = await getAccessTokenSilently();
+            const res = await fetch(`${API}/patients/${id}`, {
+                headers: { Authorization: `Bearer ${token}` },
+            });
+            if (!res.ok) throw new Error(await res.text());
+            return await res.json();
+        } catch (err) {
+            console.error(err);
+            router.replace('/dashboard');
+            return null;
+        }
+    }, [getAccessTokenSilently, router, id]);
 
 function InfoCard({
                       title,
@@ -124,11 +212,11 @@ export default function PatientPage() {
     const [saving, setSaving] = useState(false);
     const [section, setSection] = useState<Section>('home');
 
-    // ── Appointments ──
+    // Appointments
     const [appointments, setAppointments] = useState<any[]>([]);
     const [apptLoading, setApptLoading] = useState(true);
 
-    // Add/Edit modal state
+    // Modal state
     const [modalOpen, setModalOpen] = useState(false);
     const [modalMode, setModalMode] = useState<'create' | 'edit'>('create');
     const [currentAppt, setCurrentAppt] = useState<any>(null);
@@ -136,113 +224,68 @@ export default function PatientPage() {
     const [apptTime, setApptTime] = useState('');
     const [apptType, setApptType] = useState('');
 
-    // Delete dialog state
+    // Delete dialog
     const [toDeleteId, setToDeleteId] = useState<number | null>(null);
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
-    // Fetch all appointments
-    const fetchAppointments = async () => {
+    const loader = usePatientLoader(getAccessTokenSilently, router, id);
+
+    // ── Initial load ──
+    useEffect(() => {
+        if (!id) return;
+        (async () => {
+            setLoading(true);
+            const data = await loader();
+            if (data) {
+                hydrateFromPayload(data, { setPatient, setForm, setSummary });
+
+                // ⭐ NEW: summarize risks with LLM
+                if (data.risks?.length) {
+                    summarizeRisks(data.risks).then((rs: RiskSummary | null) => {
+                        if (rs) {
+                            setSummary((prev) =>
+                                prev ? { ...prev, risk_summary: rs } : prev
+                            );
+                        }
+                    });
+                }
+            }
+            setLoading(false);
+        })();
+    }, [id, loader]);
+
+    // ── Re-fetch on Summary tab ──
+    useEffect(() => {
+        if (section !== 'summary') return;
+        (async () => {
+            const fresh = await loader();
+            if (fresh) {
+                hydrateFromPayload(fresh, { setPatient, setForm, setSummary });
+                if (fresh.risks?.length) {
+                    summarizeRisks(fresh.risks).then((rs) => {
+                        if (rs) setSummary((prev) => prev ? { ...prev, risk_summary: rs } : prev);
+                    });
+                }
+            }
+        })();
+    }, [section, loader]);
+
+    // ── Fetch appointments ──
+    useEffect(() => {
         if (!patient) return;
-        try {
+        (async () => {
             setApptLoading(true);
             const token = await getAccessTokenSilently();
             const res = await fetch(
                 `${API}/appointments/by-patient/${patient.id}`,
                 { headers: { Authorization: `Bearer ${token}` } }
             );
-            if (!res.ok) throw new Error(await res.text());
-            setAppointments(await res.json());
-        } catch (e) {
-            console.error('Failed to load appointments', e);
-        } finally {
+            if (res.ok) setAppointments(await res.json());
             setApptLoading(false);
-        }
-    };
-
-    // Initial load: patient + summary
-    useEffect(() => {
-        if (!id) return;
-        (async () => {
-            try {
-                const token = await getAccessTokenSilently();
-                const res = await fetch(`${API}/patients/${id}`, {
-                    headers: { Authorization: `Bearer ${token}` },
-                });
-                if (!res.ok) throw new Error(await res.text());
-                const data = await res.json();
-
-                setPatient(data);
-                setForm({
-                    first_name: data.demographics.first_name,
-                    last_name: data.demographics.last_name,
-                    gender: data.demographics.gender,
-                    dob: data.demographics.date_of_birth,
-                    ethnicity: data.demographics.ethnicity || '',
-                    phone: data.contact_info.phone || '',
-                    email: data.contact_info.email || '',
-                    occupation: data.social_info.occupation || '',
-                    address: data.social_info.address || '',
-                    marital_status: data.social_info.marital_status || '',
-                    insurance_provider: data.social_info.insurance_provider || '',
-                });
-
-                // --- summary mapping ---
-                setSummary({
-                    follow_up_actions:
-                        data.follow_up_actions?.map((x: any) => ({
-                            id: x.id,
-                            label: x.action,
-                            extra: x.interval,
-                        })) ?? [],
-                    recommendations:
-                        data.recommendations?.map((x: any) => ({
-                            id: x.id,
-                            label: x.recommendation,
-                        })) ?? [],
-                    referrals:
-                        data.referrals?.map((x: any) => ({
-                            id: x.id,
-                            label: x.specialist,
-                            extra: x.reason,
-                        })) ?? [],
-                    risks:
-                        data.risks?.map((x: any) => ({
-                            id: x.id,
-                            label: x.value,
-                            extra: x.reason,
-                        })) ?? [],
-                    life_style_advice:
-                        data.life_style_advice?.map((x: any) => ({
-                            id: x.id,
-                            label: x.advice,
-                        })) ?? [],
-                    presumptive_diagnoses:
-                        data.presumptive_diagnoses?.map((x: any) => ({
-                            id: x.id,
-                            label: x.diagnosis_name,
-                            extra: x.confidence_level,
-                        })) ?? [],
-                    tests_to_order:
-                        data.tests_to_order?.map((x: any) => ({
-                            id: x.id,
-                            label: x.test_to_order,
-                        })) ?? [],
-                });
-            } catch (err) {
-                console.error(err);
-                router.replace('/dashboard');
-            } finally {
-                setLoading(false);
-            }
         })();
-    }, [id, getAccessTokenSilently, router]);
+    }, [patient, getAccessTokenSilently]);
 
-    // After patient loads, fetch appointments
-    useEffect(() => {
-        fetchAppointments();
-    }, [patient]);
-
-    // Open add form
+    // ── Appointment handlers ──
     const openCreate = () => {
         setModalMode('create');
         setCurrentAppt(null);
@@ -252,7 +295,6 @@ export default function PatientPage() {
         setModalOpen(true);
     };
 
-    // Open edit form
     const openEdit = (a: any) => {
         const dt = parseISO(a.datetime);
         setModalMode('edit');
@@ -263,7 +305,6 @@ export default function PatientPage() {
         setModalOpen(true);
     };
 
-    // Submit add/update
     const handleSubmitAppt = async () => {
         try {
             const token = await getAccessTokenSilently();
@@ -273,11 +314,7 @@ export default function PatientPage() {
                     ? `${API}/appointments`
                     : `${API}/appointments/${currentAppt.id}`;
             const method = modalMode === 'create' ? 'POST' : 'PUT';
-            const body = {
-                patient_id: patient.id,
-                datetime: iso,
-                type: apptType,
-            };
+            const body = { patient_id: patient.id, datetime: iso, type: apptType };
 
             const res = await fetch(url, {
                 method,
@@ -289,13 +326,18 @@ export default function PatientPage() {
             });
             if (!res.ok) throw new Error(await res.text());
             setModalOpen(false);
-            fetchAppointments();
+            // refresh list
+            const token2 = await getAccessTokenSilently();
+            const r2 = await fetch(
+                `${API}/appointments/by-patient/${patient.id}`,
+                { headers: { Authorization: `Bearer ${token2}` } }
+            );
+            if (r2.ok) setAppointments(await r2.json());
         } catch (e) {
             console.error('Failed to save appointment', e);
         }
     };
 
-    // Delete appointment
     const handleDeleteAppt = async () => {
         if (toDeleteId === null) return;
         try {
@@ -307,13 +349,19 @@ export default function PatientPage() {
             if (!res.ok) throw new Error(await res.text());
             setDeleteDialogOpen(false);
             setToDeleteId(null);
-            fetchAppointments();
+            // refresh
+            const token2 = await getAccessTokenSilently();
+            const r2 = await fetch(
+                `${API}/appointments/by-patient/${patient.id}`,
+                { headers: { Authorization: `Bearer ${token2}` } }
+            );
+            if (r2.ok) setAppointments(await r2.json());
         } catch (e) {
             console.error('Failed to delete appointment', e);
         }
     };
 
-    // Save patient info
+    // ── Save patient info ──
     const handleSave = async () => {
         if (!patient) return;
         try {
@@ -550,8 +598,7 @@ export default function PatientPage() {
                                                                                         </AlertDialogTitle>
                                                                                         <AlertDialogDescription>
                                                                                             Are you sure you want to delete the
-                                                                                            appointment scheduled on{' '}
-                                                                                            <strong>{dateStr}</strong>?
+                                                                                            appointment scheduled on <strong>{dateStr}</strong>?
                                                                                         </AlertDialogDescription>
                                                                                     </AlertDialogHeader>
                                                                                     <AlertDialogFooter className="mt-4 flex justify-end gap-2">
@@ -608,10 +655,7 @@ export default function PatientPage() {
                                 />
                             </div>
                             <h1 className="text-3xl font-bold mb-8">
-                                Summary for{' '}
-                                <span className="text-primary">
-                  {form.first_name} {form.last_name}
-                </span>
+                                Summary for <span className="text-primary">{form.first_name} {form.last_name}</span>
                             </h1>
                             <SummaryPanel {...summary} />
                         </>
@@ -626,9 +670,7 @@ export default function PatientPage() {
                         <DialogContent className="max-h-[92vh] sm:max-w-md overflow-y-auto rounded-2xl bg-white p-8 shadow-xl">
                             <DialogHeader>
                                 <DialogTitle className="text-xl font-bold">
-                                    {modalMode === 'create'
-                                        ? 'Add Appointment'
-                                        : 'Edit Appointment'}
+                                    {modalMode === 'create' ? 'Add Appointment' : 'Edit Appointment'}
                                 </DialogTitle>
                             </DialogHeader>
                             <div className="space-y-4 py-2">
