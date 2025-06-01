@@ -1,7 +1,7 @@
 // File: app/components/AppointmentsList.tsx
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useAuth0 } from '@auth0/auth0-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import {
@@ -16,11 +16,10 @@ import Link from 'next/link';
 interface Appointment {
     id: number;
     patient_id: number;
-    datetime: string;      // ISO timestamp
+    datetime: string; // ISO timestamp
     type: string;
-    // we’ll add these at runtime:
-    patient_first_name?: string;
-    patient_last_name?: string;
+    patient_first_name: string;
+    patient_last_name: string;
 }
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8001/api/v1';
@@ -29,43 +28,27 @@ export function AppointmentsList() {
     const { getAccessTokenSilently } = useAuth0();
     const [appointments, setAppointments] = useState<Appointment[]>([]);
     const [loading, setLoading] = useState(true);
+    const didFetchRef = useRef(false); // ← guard against double-mount in Strict Mode
 
     useEffect(() => {
+        if (didFetchRef.current) return; // already fetched once
+        didFetchRef.current = true;
+
         (async () => {
             try {
                 setLoading(true);
                 const token = await getAccessTokenSilently();
 
-                // 1) fetch raw appointment list
-                const apptRes = await fetch(`${API}/appointments`, {
+                // Fetch *only* today's appointments + patient names:
+                const res = await fetch(`${API}/appointments/today`, {
                     headers: { Authorization: `Bearer ${token}` },
                 });
-                if (!apptRes.ok) throw new Error(await apptRes.text());
-                const raw: Appointment[] = await apptRes.json();
+                if (!res.ok) throw new Error(await res.text());
+                const data: Appointment[] = await res.json();
 
-                // 2) enrich each with first/last name
-                const enriched = await Promise.all(
-                    raw.map(async (appt) => {
-                        const pRes = await fetch(`${API}/patients/${appt.patient_id}`, {
-                            headers: { Authorization: `Bearer ${token}` },
-                        });
-                        if (!pRes.ok) throw new Error(`Failed to load patient ${appt.patient_id}`);
-                        const patient = await pRes.json();
-                        return {
-                            ...appt,
-                            patient_first_name: patient.demographics.first_name,
-                            patient_last_name: patient.demographics.last_name,
-                        };
-                    })
-                );
-
-                // 3) filter to today
-                const today = new Date().toLocaleDateString('en-CA');
-                setAppointments(
-                    enriched.filter((a) => a.datetime.split('T')[0] === today)
-                );
+                setAppointments(data);
             } catch (err) {
-                console.error('Failed to load appointments', err);
+                console.error('Failed to load today’s appointments', err);
             } finally {
                 setLoading(false);
             }

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth0 } from '@auth0/auth0-react';
@@ -14,7 +14,6 @@ import { SymptomsSection } from '@/app/components/SymptomsSection';
 import { PersonalHistorySection } from '@/app/components/PersonalHistorySection';
 import { VitalSignsSection } from '@/app/components/VitalSignsSection';
 import { TestsSection } from '@/app/components/TestsSection';
-import { RiskSummaryComponent } from "@/app/components/RiskSummaryComponent";
 
 import {
     User,
@@ -122,16 +121,18 @@ function hydrateFromPayload(
     } as SummaryBuckets);
 }
 
-/** Hook to fetch a patient by ID **/
+/** Hook to fetch a patient by ID (basic vs. full) **/
 const usePatientLoader = (
     getAccessTokenSilently: () => Promise<string>,
     router: any,
-    id: string
+    id: string,
+    basicMode: boolean
 ) =>
     useCallback(async () => {
         try {
             const token = await getAccessTokenSilently();
-            const res = await fetch(`${API}/patients/${id}`, {
+            const query = basicMode ? '?basic=true' : '?basic=false';
+            const res = await fetch(`${API}/patients/${id}${query}`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
             if (!res.ok) throw new Error(await res.text());
@@ -141,7 +142,7 @@ const usePatientLoader = (
             router.replace('/dashboard');
             return null;
         }
-    }, [getAccessTokenSilently, router, id]);
+    }, [getAccessTokenSilently, router, id, basicMode]);
 
 function InfoCard({
                       title,
@@ -158,9 +159,7 @@ function InfoCard({
                 <span className="text-primary">{icon}</span>
                 <h3 className="text-sm font-medium text-primary">{title}</h3>
             </header>
-            <div className="px-5 py-4 space-y-3 text-sm text-gray-700 grow">
-                {children}
-            </div>
+            <div className="px-5 py-4 space-y-3 text-sm text-gray-700 grow">{children}</div>
         </div>
     );
 }
@@ -191,9 +190,7 @@ function Field({
                     onChange={(e) => onChange?.(e.target.value)}
                 />
             ) : (
-                <span className={value ? '' : 'italic text-gray-400'}>
-          {value || '—'}
-        </span>
+                <span className={value ? '' : 'italic text-gray-400'}>{value || '—'}</span>
             )}
         </div>
     );
@@ -228,58 +225,75 @@ export default function PatientPage() {
     const [toDeleteId, setToDeleteId] = useState<number | null>(null);
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
-    const loader = usePatientLoader(getAccessTokenSilently, router, id);
+    // Strict Mode guards
+    const didFetchPatientBasic = useRef(false);
+    const didFetchAppts = useRef(false);
 
-    // ── Initial load ──
+    // ── 1) Initial load (basic=true) ──
+    const loaderBasic = usePatientLoader(getAccessTokenSilently, router, id, true);
+
     useEffect(() => {
-        if (!id) return;
+        if (!id || didFetchPatientBasic.current) return;
+        didFetchPatientBasic.current = true;
+
         (async () => {
             setLoading(true);
-            const data = await loader();
-            if (data) {
-                hydrateFromPayload(data, { setPatient, setForm, setSummary });
-
-                // ⭐ NEW: summarize risks with LLM
-                if (data.risks?.length) {
-                    summarizeRisks(data.risks).then((rs: RiskSummary | null) => {
-                        if (rs) {
-                            setSummary((prev) =>
-                                prev ? { ...prev, risk_summary: rs } : prev
-                            );
-                        }
-                    });
-                }
+            const basicData = await loaderBasic();
+            if (basicData) {
+                hydrateFromPayload(basicData, { setPatient, setForm, setSummary });
             }
             setLoading(false);
         })();
-    }, [id, loader]);
+    }, [id, loaderBasic]);
 
-    // ── Re-fetch on Summary tab ──
+    // ── 2) Every time “Summary” is clicked, re-fetch full payload (basic=false) ──
+    const loaderFull = usePatientLoader(getAccessTokenSilently, router, id, false);
+
     useEffect(() => {
         if (section !== 'summary') return;
+
         (async () => {
-            const fresh = await loader();
-            if (fresh) {
-                hydrateFromPayload(fresh, { setPatient, setForm, setSummary });
-                if (fresh.risks?.length) {
-                    summarizeRisks(fresh.risks).then((rs) => {
-                        if (rs) setSummary((prev) => prev ? { ...prev, risk_summary: rs } : prev);
-                    });
+            setLoading(true);
+
+            const fullData = await loaderFull();
+            if (fullData) {
+                hydrateFromPayload(fullData, { setPatient, setForm, setSummary });
+
+                if (fullData.risks?.length) {
+                    const rs: RiskSummary | null = await summarizeRisks(fullData.risks);
+
+                    if (rs) {
+                        // Provide a default shape if summary was null
+                        setSummary((prev) => {
+                            const base: SummaryBuckets = prev || {
+                                follow_up_actions: [],
+                                recommendations: [],
+                                referrals: [],
+                                life_style_advice: [],
+                                presumptive_diagnoses: [],
+                                tests_to_order: [],
+                            };
+                            return { ...base, risk_summary: rs };
+                        });
+                    }
                 }
             }
-        })();
-    }, [section, loader]);
 
-    // ── Fetch appointments ──
+            setLoading(false);
+        })();
+    }, [section, loaderFull]);
+
+    // ── 3) Fetch appointments once ──
     useEffect(() => {
-        if (!patient) return;
+        if (!patient || didFetchAppts.current) return;
+        didFetchAppts.current = true;
+
         (async () => {
             setApptLoading(true);
             const token = await getAccessTokenSilently();
-            const res = await fetch(
-                `${API}/appointments/by-patient/${patient.id}`,
-                { headers: { Authorization: `Bearer ${token}` } }
-            );
+            const res = await fetch(`${API}/appointments/by-patient/${patient.id}`, {
+                headers: { Authorization: `Bearer ${token}` },
+            });
             if (res.ok) setAppointments(await res.json());
             setApptLoading(false);
         })();
@@ -294,7 +308,6 @@ export default function PatientPage() {
         setApptType('');
         setModalOpen(true);
     };
-
     const openEdit = (a: any) => {
         const dt = parseISO(a.datetime);
         setModalMode('edit');
@@ -304,7 +317,6 @@ export default function PatientPage() {
         setApptType(a.type);
         setModalOpen(true);
     };
-
     const handleSubmitAppt = async () => {
         try {
             const token = await getAccessTokenSilently();
@@ -326,18 +338,17 @@ export default function PatientPage() {
             });
             if (!res.ok) throw new Error(await res.text());
             setModalOpen(false);
-            // refresh list
+
+            // Refresh appointments
             const token2 = await getAccessTokenSilently();
-            const r2 = await fetch(
-                `${API}/appointments/by-patient/${patient.id}`,
-                { headers: { Authorization: `Bearer ${token2}` } }
-            );
+            const r2 = await fetch(`${API}/appointments/by-patient/${patient.id}`, {
+                headers: { Authorization: `Bearer ${token2}` },
+            });
             if (r2.ok) setAppointments(await r2.json());
         } catch (e) {
             console.error('Failed to save appointment', e);
         }
     };
-
     const handleDeleteAppt = async () => {
         if (toDeleteId === null) return;
         try {
@@ -349,12 +360,12 @@ export default function PatientPage() {
             if (!res.ok) throw new Error(await res.text());
             setDeleteDialogOpen(false);
             setToDeleteId(null);
-            // refresh
+
+            // Refresh after delete
             const token2 = await getAccessTokenSilently();
-            const r2 = await fetch(
-                `${API}/appointments/by-patient/${patient.id}`,
-                { headers: { Authorization: `Bearer ${token2}` } }
-            );
+            const r2 = await fetch(`${API}/appointments/by-patient/${patient.id}`, {
+                headers: { Authorization: `Bearer ${token2}` },
+            });
             if (r2.ok) setAppointments(await r2.json());
         } catch (e) {
             console.error('Failed to delete appointment', e);
@@ -526,9 +537,7 @@ export default function PatientPage() {
                                 <div>
                                     <div className="rounded-xl border shadow-sm bg-white flex flex-col">
                                         <header className="flex items-center justify-between px-5 py-3 border-b bg-gray-50">
-                                            <h3 className="text-sm font-medium text-primary">
-                                                Appointments
-                                            </h3>
+                                            <h3 className="text-sm font-medium text-primary">Appointments</h3>
                                             <Button variant="outline" size="sm" onClick={openCreate}>
                                                 + Add
                                             </Button>
@@ -563,9 +572,7 @@ export default function PatientPage() {
                                                         >
                                                             <div>
                                                                 <p className="font-medium">{dateStr}</p>
-                                                                <p className="text-sm text-gray-500 capitalize">
-                                                                    {a.type}
-                                                                </p>
+                                                                <p className="text-sm text-gray-500 capitalize">{a.type}</p>
                                                             </div>
                                                             <div className="flex items-center gap-2">
                                                                 <span className={badgeClasses}>{status}</span>
@@ -593,18 +600,13 @@ export default function PatientPage() {
                                                                                 <AlertDialogOverlay className="bg-white/50 backdrop-blur-sm fixed inset-0 z-50" />
                                                                                 <AlertDialogContent className="fixed z-50 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 max-w-sm bg-white rounded-2xl p-8 shadow-xl">
                                                                                     <AlertDialogHeader>
-                                                                                        <AlertDialogTitle>
-                                                                                            Delete Appointment
-                                                                                        </AlertDialogTitle>
+                                                                                        <AlertDialogTitle>Delete Appointment</AlertDialogTitle>
                                                                                         <AlertDialogDescription>
-                                                                                            Are you sure you want to delete the
-                                                                                            appointment scheduled on <strong>{dateStr}</strong>?
+                                                                                            Are you sure you want to delete the appointment scheduled on <strong>{dateStr}</strong>?
                                                                                         </AlertDialogDescription>
                                                                                     </AlertDialogHeader>
                                                                                     <AlertDialogFooter className="mt-4 flex justify-end gap-2">
-                                                                                        <AlertDialogCancel>
-                                                                                            Cancel
-                                                                                        </AlertDialogCancel>
+                                                                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
                                                                                         <AlertDialogAction onClick={handleDeleteAppt}>
                                                                                             Delete
                                                                                         </AlertDialogAction>
@@ -649,10 +651,7 @@ export default function PatientPage() {
                     ) : section === 'summary' && summary ? (
                         <>
                             <div className="flex justify-end mb-4">
-                                <ExportPdfButton
-                                    patient={patient}
-                                    doctorName={user?.name || ''}
-                                />
+                                <ExportPdfButton patient={patient} doctorName={user?.name || ''} />
                             </div>
                             <h1 className="text-3xl font-bold mb-8">
                                 Summary for <span className="text-primary">{form.first_name} {form.last_name}</span>

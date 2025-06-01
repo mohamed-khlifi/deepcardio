@@ -1,0 +1,274 @@
+// File: app/components/SummaryPanel.tsx
+'use client';
+
+import React from 'react';
+import {
+    ClipboardList,
+    FileHeart,
+    FlaskConical,
+    Repeat,
+    Send,
+    ShieldCheck,
+    Sparkles,
+    Trash2,
+    Pencil,
+} from 'lucide-react';
+import { Progress } from '@/components/ui/progress';
+import Typewriter from './Typewriter';
+import type { RiskSummary } from '@/lib/llm';
+
+type Item = { id: number; label: string; extra?: string };
+
+// now has optional risk_summary in place of a raw `risks` array
+export interface SummaryBuckets {
+    risk_summary?: RiskSummary;
+    follow_up_actions: Item[];
+    recommendations: Item[];
+    referrals: Item[];
+    life_style_advice: Item[];
+    presumptive_diagnoses: Item[];
+    tests_to_order: Item[];
+}
+
+/**
+ * We add four new callbacks for follow_up_actions:
+ *   onAddFollowUp: () => void
+ *   onEditFollowUp: (id: number, currentLabel: string, currentExtra: string) => void
+ *   onDeleteFollowUp: (id: number) => void
+ */
+interface SummaryPanelProps extends SummaryBuckets {
+    onAddFollowUp: () => void;
+    onEditFollowUp: (id: number, currentLabel: string, currentExtra: string) => void;
+    onDeleteFollowUp: (id: number) => void;
+}
+
+export function SummaryPanel({
+                                 risk_summary,
+                                 follow_up_actions,
+                                 recommendations,
+                                 referrals,
+                                 life_style_advice,
+                                 presumptive_diagnoses,
+                                 tests_to_order,
+                                 onAddFollowUp,
+                                 onEditFollowUp,
+                                 onDeleteFollowUp,
+                             }: SummaryPanelProps) {
+    // ❶ If absolutely nothing at all (no buckets AND no risk), show a centered “no summary” message
+    const allBucketsEmpty =
+        !risk_summary &&
+        follow_up_actions.length === 0 &&
+        recommendations.length === 0 &&
+        referrals.length === 0 &&
+        life_style_advice.length === 0 &&
+        presumptive_diagnoses.length === 0 &&
+        tests_to_order.length === 0;
+
+    if (allBucketsEmpty) {
+        return (
+            <div className="w-full flex items-center justify-center p-10">
+                <p className="text-gray-500 italic">No summary data available yet.</p>
+            </div>
+        );
+    }
+
+    // ❷ Otherwise, render the risk card first (with a “no risk” message if absent),
+    //     then render the Follow‐up Actions card (with edit + delete + add), then other buckets.
+
+    const Card = ({
+                      title,
+                      icon,
+                      children,
+                  }: {
+        title: string;
+        icon: React.ReactNode;
+        children: React.ReactNode;
+    }) => (
+        <div className="rounded-2xl border bg-white shadow-sm flex flex-col">
+            <header className="flex items-center gap-2 border-b bg-gray-50/70 px-5 py-3 rounded-t-2xl">
+                <span className="text-primary">{icon}</span>
+                <h3 className="text-sm font-semibold text-primary">{title}</h3>
+            </header>
+            <div className="px-5 py-4 space-y-3 text-sm text-gray-700 grow max-h-[250px] overflow-y-auto">
+                {children}
+            </div>
+        </div>
+    );
+
+    const Empty = () => <p className="italic text-gray-400">No data yet.</p>;
+
+    /**
+     * We wrap each entry with edit+delete icons
+     */
+    const EntryWithActions = ({
+                                  id,
+                                  main,
+                                  sub,
+                              }: {
+        id: number;
+        main: string;
+        sub?: string;
+    }) => (
+        <div className="relative border border-gray-100 rounded-lg px-3 py-2 bg-gray-50 shadow-sm flex justify-between items-start">
+            <div>
+                <p className="font-medium">{main}</p>
+                {sub && <p className="text-xs text-gray-500 mt-1">{sub}</p>}
+            </div>
+            <div className="flex space-x-2">
+                {/* Edit button */}
+                <button
+                    onClick={() => onEditFollowUp(id, main, sub ?? '')}
+                    className="text-gray-500 hover:text-primary"
+                    title="Edit"
+                >
+                    <Pencil className="h-4 w-4" />
+                </button>
+                {/* Delete button */}
+                <button
+                    onClick={() => onDeleteFollowUp(id)}
+                    className="text-gray-500 hover:text-red-600"
+                    title="Delete"
+                >
+                    <Trash2 className="h-4 w-4" />
+                </button>
+            </div>
+        </div>
+    );
+
+    return (
+        <>
+            {/* ── Risk Card ── */}
+            <div className="lg:w-1/2 w-full bg-white rounded-2xl shadow-sm border p-6 mb-6">
+                <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2">
+                        <ShieldCheck className="h-5 w-5 text-primary" />
+                        <h2 className="text-lg font-semibold text-primary">Overall Risk</h2>
+                    </div>
+                    {risk_summary ? (
+                        <span className="bg-primary/10 text-primary font-semibold px-2 py-1 rounded-lg text-sm">
+              {risk_summary.score}
+            </span>
+                    ) : (
+                        <span className="text-gray-500 italic">No risk data</span>
+                    )}
+                </div>
+
+                {risk_summary ? (
+                    <>
+                        <Progress value={risk_summary.score} className="mb-4" />
+                        <p className="text-center font-medium text-lg mb-2">
+                            {risk_summary.value}
+                        </p>
+                        <p className="text-sm text-gray-600">
+                            <Typewriter text={risk_summary.reason} speed={50} />
+                        </p>
+                    </>
+                ) : (
+                    <p className="text-center text-gray-500 italic">
+                        No risk data available.
+                    </p>
+                )}
+            </div>
+
+            {/* ── Follow‐up Actions ── */}
+            <div className="rounded-2xl border bg-white shadow-sm flex flex-col">
+                <header className="flex items-center justify-between border-b bg-gray-50/70 px-5 py-3 rounded-t-2xl">
+                    <div className="flex items-center gap-2">
+                        <Repeat className="size-4 text-primary" />
+                        <h3 className="text-sm font-semibold text-primary">Follow‐up Actions</h3>
+                    </div>
+                    <button
+                        onClick={onAddFollowUp}
+                        className="text-primary hover:bg-primary/10 px-2 py-1 rounded-md text-xs font-semibold uppercase"
+                    >
+                        + Add
+                    </button>
+                </header>
+                <div className="px-5 py-4 space-y-3 text-sm text-gray-700 grow max-h-[250px] overflow-y-auto">
+                    {follow_up_actions.length ? (
+                        follow_up_actions.map((f) => (
+                            <EntryWithActions
+                                key={f.id}
+                                id={f.id}
+                                main={f.label}
+                                sub={`Interval: ${f.extra ?? '—'}`}
+                            />
+                        ))
+                    ) : (
+                        <Empty />
+                    )}
+                </div>
+            </div>
+
+            {/* ── Other Buckets (read‐only, no edit controls) ── */}
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                <Card title="Recommendations" icon={<ClipboardList className="size-4" />}>
+                    {recommendations.length ? (
+                        recommendations.map((r) => <Entry key={r.id} main={r.label} />)
+                    ) : (
+                        <Empty />
+                    )}
+                </Card>
+
+                <Card title="Referrals" icon={<Send className="size-4" />}>
+                    {referrals.length ? (
+                        referrals.map((r) => (
+                            <Entry key={r.id} main={r.label} sub={`Reason: ${r.extra ?? '—'}`} />
+                        ))
+                    ) : (
+                        <Empty />
+                    )}
+                </Card>
+
+                <Card title="Lifestyle Advice" icon={<Sparkles className="size-4" />}>
+                    {life_style_advice.length ? (
+                        life_style_advice.map((l) => <Entry key={l.id} main={l.label} />)
+                    ) : (
+                        <Empty />
+                    )}
+                </Card>
+
+                <Card
+                    title="Presumptive Diagnoses"
+                    icon={<FileHeart className="size-4" />}
+                >
+                    {presumptive_diagnoses.length ? (
+                        presumptive_diagnoses.map((d) => (
+                            <Entry
+                                key={d.id}
+                                main={d.label}
+                                sub={`Confidence: ${d.extra ?? '—'}`}
+                            />
+                        ))
+                    ) : (
+                        <Empty />
+                    )}
+                </Card>
+
+                <Card title="Tests to Order" icon={<FlaskConical className="size-4" />}>
+                    {tests_to_order.length ? (
+                        tests_to_order.map((t) => <Entry key={t.id} main={t.label} />)
+                    ) : (
+                        <Empty />
+                    )}
+                </Card>
+            </div>
+        </>
+    );
+}
+
+// Re‐export Entry for use in other, read‐only buckets
+function Entry({
+                   main,
+                   sub,
+               }: {
+    main: string;
+    sub?: string;
+}) {
+    return (
+        <div className="border border-gray-100 rounded-lg px-3 py-2 bg-gray-50 shadow-sm">
+            <p className="font-medium">{main}</p>
+            {sub && <p className="text-xs text-gray-500 mt-1">{sub}</p>}
+        </div>
+    );
+}

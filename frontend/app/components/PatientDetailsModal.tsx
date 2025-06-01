@@ -8,18 +8,17 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import Link from 'next/link';
 import { useAuth0 } from '@auth0/auth0-react';
 import {
-    Calendar,
-    Mail,
-    Phone,
-    MapPin,
+    Loader2,
     IdCard,
     User,
     Briefcase,
     Heart,
-    Loader2,
+    Phone,
+    Mail,
+    MapPin,
+    Calendar,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
@@ -31,46 +30,64 @@ interface Props {
     open: boolean;
     onClose: () => void;
 }
-interface PatientResponse {
+
+// Match exactly the “basic” PatientResponse fields:
+interface Demographics {
+    first_name: string;
+    last_name: string;
+    gender: string;
+    date_of_birth: string; // ISO date string
+    age: number;
+    ethnicity?: string | null;
+}
+
+interface ContactInfo {
+    phone?: string | null;
+    email?: string | null;
+}
+
+interface SocialInfo {
+    marital_status?: string | null;
+    occupation?: string | null;
+    insurance_provider?: string | null;
+    address?: string | null;
+}
+
+interface PatientBasicDetail {
     id: number;
-    demographics: {
-        first_name: string;
-        last_name: string;
-        gender: string;
-        date_of_birth: string;
-        age: number;
-        ethnicity?: string | null;
-    };
-    contact_info: { phone?: string | null; email?: string | null };
-    social_info: {
-        marital_status?: string | null;
-        occupation?: string | null;
-        insurance_provider?: string | null;
-        address?: string | null;
-    };
+    demographics: Demographics;
+    contact_info: ContactInfo;
+    social_info: SocialInfo;
 }
 
 /* ───────── modal ───────── */
 export function PatientDetailsModal({ patientId, open, onClose }: Props) {
     const router = useRouter();
     const { getAccessTokenSilently } = useAuth0();
-    const [patient, setPatient]   = useState<PatientResponse | null>(null);
-    const [loading, setLoading]   = useState(false);
+    const [patient, setPatient] = useState<PatientBasicDetail | null>(null);
+    const [loading, setLoading] = useState(false);
 
     useEffect(() => {
         if (!open || patientId == null) return;
+
         (async () => {
             try {
                 setLoading(true);
                 setPatient(null);
+
                 const token = await getAccessTokenSilently();
-                const res   = await fetch(`${API}/patients/${patientId}`, {
-                    headers: { Authorization: `Bearer ${token}` },
-                });
+                // ▶ Fetch using the “+?basic=true” flag:
+                const res = await fetch(
+                    `${API}/patients/${patientId}?basic=true`,
+                    {
+                        headers: { Authorization: `Bearer ${token}` },
+                    }
+                );
                 if (!res.ok) throw new Error(await res.text());
-                setPatient(await res.json());
+                const data: PatientBasicDetail = await res.json();
+                setPatient(data);
             } catch (err) {
-                console.error(err);
+                console.error('Failed to load basic patient data:', err);
             } finally {
                 setLoading(false);
             }
@@ -88,7 +105,6 @@ export function PatientDetailsModal({ patientId, open, onClose }: Props) {
                     <DialogTitle>Patient Details</DialogTitle>
                 </DialogHeader>
 
-                {/* loader */}
                 {loading && (
                     <div className="flex flex-col items-center justify-center py-24 gap-4">
                         <Loader2 className="size-7 animate-spin text-primary" />
@@ -125,9 +141,9 @@ export function PatientDetailsModal({ patientId, open, onClose }: Props) {
 
                                 <InfoCard title="Social & Insurance" icon={<Heart className="size-4" />}>
                                     <Field label="Marital status" value={S!.marital_status} placeholder="—" />
-                                    <Field label="Occupation"     value={S!.occupation}     placeholder="—" />
-                                    <Field label="Insurance"      value={S!.insurance_provider} placeholder="—" />
-                                    <Field label="Address"        value={S!.address}        placeholder="—" />
+                                    <Field label="Occupation" value={S!.occupation} placeholder="—" />
+                                    <Field label="Insurance" value={S!.insurance_provider} placeholder="—" />
+                                    <Field label="Address" value={S!.address} placeholder="—" />
                                 </InfoCard>
                             </section>
 
@@ -142,15 +158,10 @@ export function PatientDetailsModal({ patientId, open, onClose }: Props) {
                                 >
                                     Open Patient Record
                                 </Button>
-                                <Button
-                                    variant="outline"
-                                    className="w-48"
-                                    onClick={onClose}
-                                >
+                                <Button variant="outline" className="w-48" onClick={onClose}>
                                     Close
                                 </Button>
                             </div>
-
                         </div>
                     </>
                 )}
