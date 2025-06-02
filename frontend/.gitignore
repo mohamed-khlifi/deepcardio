@@ -39,3 +39,5 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+"frontend/lib/llm.ts" 
+"frontend/lib/summarizeRisks.ts" 
