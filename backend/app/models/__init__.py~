@@ -19,3 +19,4 @@ from models.presumptive_diagnosis_catalog import PresumptiveDiagnosisCatalog
 from models.tests_to_order_catalog import TestsToOrderCatalog
 from models.symptoms_schema import PatientSymptomCreate
 from models.doctor_patient import DoctorPatient
+from models.doctor import Doctor

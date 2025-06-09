@@ -1,4 +1,6 @@
 from sqlalchemy.orm import Session
+
+from models.patient_follow_up_action import PatientFollowUpAction
 from models.patient import Patient
 from models.symptom_dict import SymptomDict
 from models.patient_symptom import PatientSymptom
@@ -113,7 +115,7 @@ def get_follow_up_actions_from_symptoms(db: Session, patient_id: int):
         .filter(
             SymptomsDecisionRule.symptom_id.in_(symptom_ids),
             or_(SymptomsDecisionRule.gender == patient.gender, SymptomsDecisionRule.gender == None),
-            or_(SymptomsDecisionRule.age_group == age_group, SymptomsDecisionRule.age_group == None)
+            or_(SymptomsDecisionRule.age_group == age_group, SymptomsDecisionRule.age_group == None),
         )
         .distinct()
         .all()
@@ -845,38 +847,34 @@ def get_lifestyle_advices_from_tests(db: Session, patient_id: int):
     age = today.year - patient.dob.year - ((today.month, today.day) < (patient.dob.month, patient.dob.day))
     age_group = get_age_group(age)
 
-    test_ids = (
-        db.query(PatientTests.test_id)
-        .filter(PatientTests.patient_id == patient_id)
-        .distinct()
-        .all()
-    )
-    test_ids = [t.test_id for t in test_ids]
-
-    if not test_ids:
+    tests = db.query(PatientTests).filter(PatientTests.patient_id == patient_id).all()
+    if not tests:
         return []
 
-    rules = (
-        db.query(TestsDecisionRule.life_style_advice_key)
-        .filter(
-            TestsDecisionRule.test_id.in_(test_ids),
-            or_(TestsDecisionRule.gender == patient.gender, TestsDecisionRule.gender == None),
-            or_(TestsDecisionRule.age_group == age_group, TestsDecisionRule.age_group == None)
-        )
-        .distinct()
-        .all()
-    )
+    advice_keys = set()
 
-    keys = [r.life_style_advice_key for r in rules if r.life_style_advice_key]
+    for test in tests:
+        test_value = parse_float_or_none(test.result_value)
+        if test_value is None:
+            continue
 
-    if not keys:
+        rules = db.query(TestsDecisionRule).filter(
+            TestsDecisionRule.test_id == test.test_id,
+            or_(TestsDecisionRule.gender == patient.gender, TestsDecisionRule.gender.is_(None)),
+            or_(TestsDecisionRule.age_group == age_group, TestsDecisionRule.age_group.is_(None)),
+            TestsDecisionRule.life_style_advice_key.isnot(None)
+        ).all()
+
+        for rule in rules:
+            if compare_values(test_value, rule.min_value, rule.max_value):
+                advice_keys.add(rule.life_style_advice_key)
+
+    if not advice_keys:
         return []
 
-    return (
-        db.query(LifeStyleAdvicesCatalog)
-        .filter(LifeStyleAdvicesCatalog.life_style_advice_key.in_(keys))
-        .all()
-    )
+    return db.query(LifeStyleAdvicesCatalog).filter(
+        LifeStyleAdvicesCatalog.life_style_advice_key.in_(list(advice_keys))
+    ).all()
 
 def get_presumptive_diagnoses_from_symptoms(db: Session, patient_id: int):
     patient = db.query(Patient).filter(Patient.patient_id == patient_id).first()
@@ -1132,3 +1130,13 @@ def create_patient_symptom(db: Session, data: PatientSymptomCreate):
     db.commit()
     db.refresh(new_symptom)
     return new_symptom
+
+def get_patient_follow_up_actions(db: Session, patient_id: int):
+    """
+    Return all rows from patient_follow_up_actions for a given patient.
+    """
+    return (
+        db.query(PatientFollowUpAction)
+        .filter(PatientFollowUpAction.patient_id == patient_id)
+        .all()
+    )

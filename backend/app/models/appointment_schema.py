@@ -20,3 +20,14 @@ class AppointmentResponse(AppointmentBase):
 
     class Config:
         from_attributes = True
+
+class AppointmentToday(BaseModel):
+    id: int
+    patient_id: int
+    datetime: datetime
+    type: str
+    patient_first_name: str
+    patient_last_name: str
+
+    class Config:
+        from_attributes = True

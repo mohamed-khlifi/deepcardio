@@ -1,17 +1,20 @@
 # File: app/api/v1/endpoints/appointments.py
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 from typing import List
+from datetime import date
 
 from core.deps import get_db
 from core.deps_doctor import get_current_doctor
+from models import Patient
 from models.doctor import Doctor
 from models.doctor_patient import DoctorPatient
 from models.appointment import Appointment
 from models.appointment_schema import (
     AppointmentCreate,
     AppointmentUpdate,
-    AppointmentResponse,
+    AppointmentResponse, AppointmentToday,
 )
 
 appointments_router = APIRouter(prefix="/appointments", tags=["appointments"])
@@ -121,3 +124,53 @@ def delete_appointment(
     ensure_patient_belongs_to_doctor(db, doctor, appt.patient_id)
     db.delete(appt)
     db.commit()
+
+@appointments_router.get(
+    "/today",
+    response_model=List[AppointmentToday],
+    summary="Get this doctor’s appointments scheduled for today (with patient names)",
+)
+def read_todays_appointments(
+        db: Session = Depends(get_db),
+        doctor: Doctor = Depends(get_current_doctor),
+):
+    """
+    Returns all appointments for the logged-in doctor that fall on today's date.
+    Each record includes appointment.id, patient_id, datetime, type,
+    patient_first_name and patient_last_name.
+    """
+    # 1) Find all patient_ids that belong to this doctor:
+    subq = db.query(DoctorPatient.patient_id).filter_by(doctor_id=doctor.id).subquery()
+
+    # 2) Use func.date(...) == date.today() to compare only the date portion:
+    today_date = date.today()
+
+    rows = (
+        db.query(
+            Appointment.id,
+            Appointment.patient_id,
+            Appointment.datetime,
+            Appointment.type,
+            Patient.first_name.label("patient_first_name"),
+            Patient.last_name.label("patient_last_name"),
+        )
+        .join(Patient, Patient.patient_id == Appointment.patient_id)
+        .filter(Appointment.patient_id.in_(subq))
+        .filter(func.date(Appointment.datetime) == today_date)
+        .order_by(Appointment.datetime)
+        .all()
+    )
+
+    # Convert each row into a dict for Pydantic
+    result = [
+        {
+            "id": r.id,
+            "patient_id": r.patient_id,
+            "datetime": r.datetime,
+            "type": r.type,
+            "patient_first_name": r.patient_first_name,
+            "patient_last_name": r.patient_last_name,
+        }
+        for r in rows
+    ]
+    return result

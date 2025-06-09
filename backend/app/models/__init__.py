@@ -20,3 +20,4 @@ from models.tests_to_order_catalog import TestsToOrderCatalog
 from models.symptoms_schema import PatientSymptomCreate
 from models.doctor_patient import DoctorPatient
 from models.doctor import Doctor
+from models.patient_follow_up_action import PatientFollowUpAction
