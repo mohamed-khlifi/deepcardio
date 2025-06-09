@@ -108,25 +108,36 @@ export function CreatePatientModal({ open, onClose }: Props) {
 
     /* ------ UI ------ */
     return (
-        <Dialog open={open} onOpenChange={onClose}>
-            <DialogContent className="max-h-[92vh] max-w-2xl overflow-y-auto rounded-2xl bg-white p-8 shadow-xl">
-                <DialogHeader>
-                    <DialogTitle className="flex items-center gap-2 text-2xl font-bold">
-                        <UserPlus className="size-6 text-primary" />
+        <Dialog open={open} onOpenChange={onClose} dc-test-id="create-patient-dialog">
+            <DialogContent
+                dc-test-id="create-patient-dialog-content"
+                className="max-h-[92vh] max-w-2xl overflow-y-auto rounded-2xl bg-white p-8 shadow-xl"
+            >
+                <DialogHeader dc-test-id="create-patient-dialog-header">
+                    <DialogTitle
+                        dc-test-id="create-patient-dialog-title"
+                        className="flex items-center gap-2 text-2xl font-bold"
+                    >
+                        <UserPlus
+                            dc-test-id="create-patient-icon"
+                            className="size-6 text-primary"
+                        />
                         New Patient
                     </DialogTitle>
                 </DialogHeader>
 
-                <div className="grid gap-5 mt-6">
+                <div dc-test-id="create-patient-form" className="grid gap-5 mt-6">
                     {/* names */}
-                    <div className="grid sm:grid-cols-2 gap-4">
+                    <div dc-test-id="name-fields" className="grid sm:grid-cols-2 gap-4">
                         <input
+                            dc-test-id="first-name-input"
                             className="input-style"
                             placeholder="First name *"
                             value={form.first_name}
                             onChange={(e) => handleChange('first_name', e.target.value)}
                         />
                         <input
+                            dc-test-id="last-name-input"
                             className="input-style"
                             placeholder="Last name *"
                             value={form.last_name}
@@ -135,8 +146,9 @@ export function CreatePatientModal({ open, onClose }: Props) {
                     </div>
 
                     {/* gender + dob */}
-                    <div className="grid sm:grid-cols-2 gap-4">
+                    <div dc-test-id="gender-dob-fields" className="grid sm:grid-cols-2 gap-4">
                         <select
+                            dc-test-id="gender-select"
                             className="input-style"
                             value={form.gender}
                             onChange={(e) =>
@@ -149,6 +161,7 @@ export function CreatePatientModal({ open, onClose }: Props) {
                         </select>
 
                         <input
+                            dc-test-id="dob-input"
                             type="date"
                             className="input-style"
                             value={form.dob}
@@ -157,14 +170,16 @@ export function CreatePatientModal({ open, onClose }: Props) {
                     </div>
 
                     {/* contact */}
-                    <div className="grid sm:grid-cols-2 gap-4">
+                    <div dc-test-id="contact-fields" className="grid sm:grid-cols-2 gap-4">
                         <input
+                            dc-test-id="phone-input"
                             className="input-style"
                             placeholder="Phone"
                             value={form.phone}
                             onChange={(e) => handleChange('phone', e.target.value)}
                         />
                         <input
+                            dc-test-id="email-input"
                             className="input-style"
                             placeholder="Email"
                             value={form.email}
@@ -174,30 +189,35 @@ export function CreatePatientModal({ open, onClose }: Props) {
 
                     {/* other fields */}
                     <input
+                        dc-test-id="ethnicity-input"
                         className="input-style"
                         placeholder="Ethnicity"
                         value={form.ethnicity}
                         onChange={(e) => handleChange('ethnicity', e.target.value)}
                     />
                     <input
+                        dc-test-id="marital-status-input"
                         className="input-style"
                         placeholder="Marital status"
                         value={form.marital_status}
                         onChange={(e) => handleChange('marital_status', e.target.value)}
                     />
                     <input
+                        dc-test-id="occupation-input"
                         className="input-style"
                         placeholder="Occupation"
                         value={form.occupation}
                         onChange={(e) => handleChange('occupation', e.target.value)}
                     />
                     <input
+                        dc-test-id="insurance-provider-input"
                         className="input-style"
                         placeholder="Insurance provider"
                         value={form.insurance_provider}
                         onChange={(e) => handleChange('insurance_provider', e.target.value)}
                     />
                     <textarea
+                        dc-test-id="address-textarea"
                         className="input-style h-20"
                         placeholder="Address"
                         value={form.address}
@@ -206,13 +226,19 @@ export function CreatePatientModal({ open, onClose }: Props) {
 
                     {/* messages */}
                     {error && (
-                        <p className="text-red-600 text-sm flex items-center gap-2">
+                        <p
+                            dc-test-id="error-message"
+                            className="text-red-600 text-sm flex items-center gap-2"
+                        >
                             <AlertCircle className="size-4" />
                             {error}
                         </p>
                     )}
                     {done && (
-                        <p className="text-green-600 text-sm flex items-center gap-2">
+                        <p
+                            dc-test-id="success-message"
+                            className="text-green-600 text-sm flex items-center gap-2"
+                        >
                             <CheckCircle className="size-4" />
                             Patient created successfully.
                         </p>
@@ -220,8 +246,9 @@ export function CreatePatientModal({ open, onClose }: Props) {
                 </div>
 
                 {/* footer */}
-                <div className="mt-8 flex gap-4">
+                <div dc-test-id="form-actions" className="mt-8 flex gap-4">
                     <Button
+                        dc-test-id="save-button"
                         className="w-full gap-2"
                         onClick={handleSubmit}
                         disabled={loading}
@@ -231,6 +258,7 @@ export function CreatePatientModal({ open, onClose }: Props) {
                     </Button>
 
                     <Button
+                        dc-test-id="cancel-button"
                         variant="outline"
                         className="w-full"
                         onClick={onClose}

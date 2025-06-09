@@ -28,24 +28,21 @@ export function AppointmentsList() {
     const { getAccessTokenSilently } = useAuth0();
     const [appointments, setAppointments] = useState<Appointment[]>([]);
     const [loading, setLoading] = useState(true);
-    const didFetchRef = useRef(false); // ← guard against double-mount in Strict Mode
+    const didFetchRef = useRef(false);
 
     useEffect(() => {
-        if (didFetchRef.current) return; // already fetched once
+        if (didFetchRef.current) return;
         didFetchRef.current = true;
 
         (async () => {
             try {
                 setLoading(true);
                 const token = await getAccessTokenSilently();
-
-                // Fetch *only* today's appointments + patient names:
                 const res = await fetch(`${API}/appointments/today`, {
                     headers: { Authorization: `Bearer ${token}` },
                 });
                 if (!res.ok) throw new Error(await res.text());
                 const data: Appointment[] = await res.json();
-
                 setAppointments(data);
             } catch (err) {
                 console.error('Failed to load today’s appointments', err);
@@ -56,23 +53,28 @@ export function AppointmentsList() {
     }, [getAccessTokenSilently]);
 
     return (
-        <Card className="shadow-sm">
-            <CardHeader className="flex items-center gap-2 py-2 px-4">
-                <CalendarIcon className="h-5 w-5 text-primary" />
-                <CardTitle className="text-lg">Today’s Appointments</CardTitle>
+        <Card dc-test-id="appointments-card" className="shadow-sm">
+            <CardHeader dc-test-id="appointments-card-header" className="flex items-center gap-2 py-2 px-4">
+                <CalendarIcon dc-test-id="appointments-icon" className="h-5 w-5 text-primary" />
+                <CardTitle dc-test-id="appointments-title" className="text-lg">
+                    Today’s Appointments
+                </CardTitle>
             </CardHeader>
-            <CardContent className="p-0">
+
+            <CardContent dc-test-id="appointments-card-content" className="p-0">
                 {loading ? (
-                    <div className="flex justify-center py-10">
-                        <Loader2 className="animate-spin text-primary size-8" />
+                    <div dc-test-id="appointments-loading" className="flex justify-center py-10">
+                        <Loader2 dc-test-id="appointments-loader" className="animate-spin text-primary size-8" />
                     </div>
                 ) : (
-                    <ScrollArea className="h-[400px]">
-                        <ScrollAreaViewport>
+                    <ScrollArea dc-test-id="appointments-scroll-area" className="h-[400px]">
+                        <ScrollAreaViewport dc-test-id="appointments-scroll-viewport">
                             {appointments.length === 0 ? (
-                                <p className="p-4 text-gray-500 italic">No appointments today.</p>
+                                <p dc-test-id="no-appointments-message" className="p-4 text-gray-500 italic">
+                                    No appointments today.
+                                </p>
                             ) : (
-                                <div className="space-y-2 p-4">
+                                <div dc-test-id="appointments-list" className="space-y-2 p-4">
                                     {appointments.map((a) => {
                                         const dt = new Date(a.datetime);
                                         const time = dt.toLocaleTimeString([], {
@@ -83,24 +85,22 @@ export function AppointmentsList() {
                                             <Link
                                                 key={a.id}
                                                 href={`/patient/${a.patient_id}`}
+                                                dc-test-id="appointment-item"
                                                 className="block bg-white rounded-lg shadow-sm hover:shadow-md transition p-4"
                                             >
-                                                <div className="flex justify-between items-center">
-                                                    <div className="flex flex-col">
-                                                        {/* Patient Name */}
-                                                        <span className="font-semibold text-gray-900">
-                              {a.patient_first_name} {a.patient_last_name}
-                            </span>
-                                                        {/* Appointment Time */}
-                                                        <span className="flex items-center text-sm text-gray-500 mt-1">
-                              <Clock className="h-4 w-4 mr-1" />
+                                                <div dc-test-id="appointment-content" className="flex justify-between items-center">
+                                                    <div dc-test-id="appointment-info" className="flex flex-col">
+                                                        <span dc-test-id="appointment-name" className="font-semibold text-gray-900">
+                                                            {a.patient_first_name} {a.patient_last_name}
+                                                        </span>
+                                                        <span dc-test-id="appointment-time" className="flex items-center text-sm text-gray-500 mt-1">
+                                                            <Clock dc-test-id="appointment-clock-icon" className="h-4 w-4 mr-1" />
                                                             {time}
-                            </span>
+                                                        </span>
                                                     </div>
-                                                    {/* Type Pill */}
-                                                    <span className="px-3 py-1 bg-primary/10 text-primary rounded-full text-xs font-medium uppercase">
-                            {a.type}
-                          </span>
+                                                    <span dc-test-id="appointment-type" className="px-3 py-1 bg-primary/10 text-primary rounded-full text-xs font-medium uppercase">
+                                                        {a.type}
+                                                    </span>
                                                 </div>
                                             </Link>
                                         );
@@ -108,8 +108,8 @@ export function AppointmentsList() {
                                 </div>
                             )}
                         </ScrollAreaViewport>
-                        <ScrollAreaScrollbar orientation="vertical">
-                            <ScrollAreaThumb />
+                        <ScrollAreaScrollbar dc-test-id="appointments-scrollbar" orientation="vertical">
+                            <ScrollAreaThumb dc-test-id="appointments-scroll-thumb" />
                         </ScrollAreaScrollbar>
                     </ScrollArea>
                 )}
@@ -117,3 +117,5 @@ export function AppointmentsList() {
         </Card>
     );
 }
+
+export default AppointmentsList;

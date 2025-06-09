@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import {
     Dialog,
     DialogContent,
@@ -9,213 +9,242 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { useAuth0 } from '@auth0/auth0-react';
-import {
-    Calendar,
-    Mail,
-    Phone,
-    MapPin,
-    IdCard,
-    User,
-    Briefcase,
-    Heart,
-    Loader2,
-} from 'lucide-react';
+import { Loader2, UserPlus, AlertCircle, CheckCircle } from 'lucide-react';
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8001/api/v1';
 
 interface Props {
-    patientId: number | null;
     open: boolean;
     onClose: () => void;
 }
 
-interface PatientResponse {
-    id: number;
-    demographics: {
-        first_name: string;
-        last_name: string;
-        gender: string;
-        date_of_birth: string;
-        age: number;
-        ethnicity?: string | null;
-    };
-    contact_info: {
-        phone?: string | null;
-        email?: string | null;
-    };
-    social_info: {
-        marital_status?: string | null;
-        occupation?: string | null;
-        insurance_provider?: string | null;
-        address?: string | null;
-    };
-}
+/* ------------ form model ------------ */
+type PatientForm = {
+    first_name: string;
+    last_name: string;
+    gender: 'Male' | 'Female' | '';
+    dob: string;
+    ethnicity: string;
+    phone: string;
+    email: string;
+    marital_status: string;
+    occupation: string;
+    insurance_provider: string;
+    address: string;
+};
 
-export function PatientDetailsModal({ patientId, open, onClose }: Props) {
+/* ------------ component ------------ */
+export function CreatePatientModal({ open, onClose }: Props) {
     const { getAccessTokenSilently } = useAuth0();
-    const [patient, setPatient] = useState<PatientResponse | null>(null);
+
+    const [form, setForm] = useState<PatientForm>({
+        first_name: '',
+        last_name: '',
+        gender: '',
+        dob: '',
+        ethnicity: '',
+        phone: '',
+        email: '',
+        marital_status: '',
+        occupation: '',
+        insurance_provider: '',
+        address: '',
+    });
+
     const [loading, setLoading] = useState(false);
+    const [error, setError]   = useState('');
+    const [done,  setDone]    = useState(false);
 
-    /* fetch patient whenever modal opens */
-    useEffect(() => {
-        if (!open || patientId == null) return;
+    /* ------ helpers ------ */
+    const handleChange = (name: keyof PatientForm, value: string) => {
+        setForm({ ...form, [name]: value });
+        if (error) setError('');
+        if (done) setDone(false);
+    };
 
-        const fetchData = async () => {
-            try {
-                setLoading(true);
-                setPatient(null);
-                const token = await getAccessTokenSilently();
-                const res = await fetch(`${API}/patients/${patientId}`, {
-                    headers: { Authorization: `Bearer ${token}` },
-                });
-                if (!res.ok) throw new Error(await res.text());
-                setPatient(await res.json());
-            } catch (err) {
-                console.error(err);
-            } finally {
-                setLoading(false);
-            }
-        };
+    const handleSubmit = async () => {
+        /* minimal validation */
+        if (!form.first_name || !form.last_name || !form.gender || !form.dob) {
+            setError('First name, last name, gender, and date-of-birth are required.');
+            return;
+        }
 
-        fetchData();
-    }, [open, patientId, getAccessTokenSilently]);
+        try {
+            setLoading(true);
+            const token = await getAccessTokenSilently();
+            const res = await fetch(`${API}/patients`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${token}`,
+                },
+                body: JSON.stringify(form),
+            });
 
-    const D = patient?.demographics;
-    const C = patient?.contact_info;
-    const S = patient?.social_info;
+            if (!res.ok) throw new Error(await res.text());
 
+            /* success */
+            setDone(true);
+            setForm({
+                first_name: '',
+                last_name: '',
+                gender: '',
+                dob: '',
+                ethnicity: '',
+                phone: '',
+                email: '',
+                marital_status: '',
+                occupation: '',
+                insurance_provider: '',
+                address: '',
+            });
+        } catch (err) {
+            console.error(err);
+            setError('Unable to create patient. Please try again.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    /* ------ UI ------ */
     return (
         <Dialog open={open} onOpenChange={onClose}>
-            <DialogContent
-                className="max-h-[92vh] max-w-3xl overflow-y-auto rounded-3xl bg-white/95
-                   backdrop-blur-md px-10 py-12 shadow-2xl data-[state=open]:animate-fade-in"
-            >
-                {/* accessible title (sr-only) */}
-                <DialogHeader className="sr-only">
-                    <DialogTitle>Patient Details</DialogTitle>
+            <DialogContent className="max-h-[92vh] max-w-2xl overflow-y-auto rounded-2xl bg-white p-8 shadow-xl">
+                <DialogHeader>
+                    <DialogTitle className="flex items-center gap-2 text-2xl font-bold">
+                        <UserPlus className="size-6 text-primary" />
+                        New Patient
+                    </DialogTitle>
                 </DialogHeader>
 
-                {/* ---------------- Loader ---------------- */}
-                {loading && (
-                    <div className="flex flex-col items-center justify-center h-60 gap-4">
-                        <Loader2 className="size-6 animate-spin text-primary" />
-                        <p className="text-gray-600 text-sm">Loading patient…</p>
+                <div className="grid gap-5 mt-6">
+                    {/* names */}
+                    <div className="grid sm:grid-cols-2 gap-4">
+                        <input
+                            className="input-style"
+                            placeholder="First name *"
+                            value={form.first_name}
+                            onChange={(e) => handleChange('first_name', e.target.value)}
+                        />
+                        <input
+                            className="input-style"
+                            placeholder="Last name *"
+                            value={form.last_name}
+                            onChange={(e) => handleChange('last_name', e.target.value)}
+                        />
                     </div>
-                )}
 
-                {/* ---------------- Content ---------------- */}
-                {patient && (
-                    <>
-                        {/* visual header */}
-                        <header className="mb-10">
-                            <h2 className="text-3xl font-extrabold flex items-center gap-3">
-                                <IdCard className="size-7 text-primary" />
-                                {D!.first_name} {D!.last_name}
-                            </h2>
-                            <p className="mt-1 text-gray-500">
-                                Patient&nbsp;ID:&nbsp;
-                                <span className="font-mono text-sm text-gray-700">{patient.id}</span>
-                            </p>
-                        </header>
+                    {/* gender + dob */}
+                    <div className="grid sm:grid-cols-2 gap-4">
+                        <select
+                            className="input-style"
+                            value={form.gender}
+                            onChange={(e) =>
+                                handleChange('gender', e.target.value as PatientForm['gender'])
+                            }
+                        >
+                            <option value="">Gender *</option>
+                            <option>Male</option>
+                            <option>Female</option>
+                        </select>
 
-                        {/* cards grid */}
-                        <section className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
-                            {/* Demographics */}
-                            <div className="rounded-2xl border shadow-sm bg-white p-6 space-y-2">
-                                <h3 className="font-semibold mb-3 flex items-center gap-2 text-primary">
-                                    <User className="size-4" />
-                                    Demographics
-                                </h3>
-                                <ul className="text-sm text-gray-700 space-y-1">
-                                    <li>
-                                        <span className="font-medium">Gender:</span> {D!.gender}
-                                    </li>
-                                    <li className="flex items-center gap-1">
-                                        <Calendar className="size-3" />
-                                        {new Date(D!.date_of_birth).toLocaleDateString()} (
-                                        {D!.age} yrs)
-                                    </li>
-                                    {D!.ethnicity && (
-                                        <li>
-                                            <span className="font-medium">Ethnicity:</span>{' '}
-                                            {D!.ethnicity}
-                                        </li>
-                                    )}
-                                </ul>
-                            </div>
+                        <input
+                            type="date"
+                            className="input-style"
+                            value={form.dob}
+                            onChange={(e) => handleChange('dob', e.target.value)}
+                        />
+                    </div>
 
-                            {/* Contact */}
-                            <div className="rounded-2xl border shadow-sm bg-white p-6 space-y-2">
-                                <h3 className="font-semibold mb-3 flex items-center gap-2 text-primary">
-                                    <Phone className="size-4" />
-                                    Contact
-                                </h3>
-                                <ul className="text-sm text-gray-700 space-y-1">
-                                    {C!.phone && (
-                                        <li className="flex items-center gap-1">
-                                            <Phone className="size-3" />
-                                            {C!.phone}
-                                        </li>
-                                    )}
-                                    {C!.email && (
-                                        <li className="flex items-center gap-1">
-                                            <Mail className="size-3" />
-                                            {C!.email}
-                                        </li>
-                                    )}
-                                    {!C!.phone && !C!.email && <li className="italic">—</li>}
-                                </ul>
-                            </div>
+                    {/* contact */}
+                    <div className="grid sm:grid-cols-2 gap-4">
+                        <input
+                            className="input-style"
+                            placeholder="Phone"
+                            value={form.phone}
+                            onChange={(e) => handleChange('phone', e.target.value)}
+                        />
+                        <input
+                            className="input-style"
+                            placeholder="Email"
+                            value={form.email}
+                            onChange={(e) => handleChange('email', e.target.value)}
+                        />
+                    </div>
 
-                            {/* Social / Insurance */}
-                            <div className="rounded-2xl border shadow-sm bg-white p-6 space-y-2">
-                                <h3 className="font-semibold mb-3 flex items-center gap-2 text-primary">
-                                    <Heart className="size-4" />
-                                    Social &amp; Insurance
-                                </h3>
-                                <ul className="text-sm text-gray-700 space-y-1">
-                                    {S!.marital_status && (
-                                        <li>
-                                            <span className="font-medium">Marital status:</span>{' '}
-                                            {S!.marital_status}
-                                        </li>
-                                    )}
-                                    {S!.occupation && (
-                                        <li className="flex items-center gap-1">
-                                            <Briefcase className="size-3" />
-                                            {S!.occupation}
-                                        </li>
-                                    )}
-                                    {S!.insurance_provider && (
-                                        <li>
-                                            <span className="font-medium">Insurance:</span>{' '}
-                                            {S!.insurance_provider}
-                                        </li>
-                                    )}
-                                    {S!.address && (
-                                        <li className="flex items-center gap-1">
-                                            <MapPin className="size-3" />
-                                            {S!.address}
-                                        </li>
-                                    )}
-                                    {!S!.marital_status &&
-                                        !S!.occupation &&
-                                        !S!.insurance_provider &&
-                                        !S!.address && <li className="italic">—</li>}
-                                </ul>
-                            </div>
-                        </section>
+                    {/* other fields */}
+                    <input
+                        className="input-style"
+                        placeholder="Ethnicity"
+                        value={form.ethnicity}
+                        onChange={(e) => handleChange('ethnicity', e.target.value)}
+                    />
+                    <input
+                        className="input-style"
+                        placeholder="Marital status"
+                        value={form.marital_status}
+                        onChange={(e) => handleChange('marital_status', e.target.value)}
+                    />
+                    <input
+                        className="input-style"
+                        placeholder="Occupation"
+                        value={form.occupation}
+                        onChange={(e) => handleChange('occupation', e.target.value)}
+                    />
+                    <input
+                        className="input-style"
+                        placeholder="Insurance provider"
+                        value={form.insurance_provider}
+                        onChange={(e) => handleChange('insurance_provider', e.target.value)}
+                    />
+                    <textarea
+                        className="input-style h-20"
+                        placeholder="Address"
+                        value={form.address}
+                        onChange={(e) => handleChange('address', e.target.value)}
+                    />
 
-                        {/* footer */}
-                        <div className="mt-12">
-                            <Button className="w-full" onClick={onClose}>
-                                Close
-                            </Button>
-                        </div>
-                    </>
-                )}
+                    {/* messages */}
+                    {error && (
+                        <p className="text-red-600 text-sm flex items-center gap-2">
+                            <AlertCircle className="size-4" />
+                            {error}
+                        </p>
+                    )}
+                    {done && (
+                        <p className="text-green-600 text-sm flex items-center gap-2">
+                            <CheckCircle className="size-4" />
+                            Patient created successfully.
+                        </p>
+                    )}
+                </div>
+
+                {/* footer */}
+                <div className="mt-8 flex gap-4">
+                    <Button
+                        className="w-full gap-2"
+                        onClick={handleSubmit}
+                        disabled={loading}
+                    >
+                        {loading && <Loader2 className="size-4 animate-spin" />}
+                        Save Patient
+                    </Button>
+
+                    <Button
+                        variant="outline"
+                        className="w-full"
+                        onClick={onClose}
+                        disabled={loading}
+                    >
+                        Cancel
+                    </Button>
+                </div>
             </DialogContent>
         </Dialog>
     );
 }
 
+/* ----------------------------------------------------------------------------
+   default export (so you can `import CreatePatientModal from '…'`)
+---------------------------------------------------------------------------- */
+export default CreatePatientModal;

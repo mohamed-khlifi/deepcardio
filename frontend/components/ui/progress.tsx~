@@ -35,7 +35,7 @@ export function Progress({
                 style={{
                     width: `${pct}%`,
                     background: `hsl(${hue},60%,50%)`,
-                    transition: 'width 2s ease, background 2s ease',
+                    transition: 'width 0.3s ease, background 0.3s ease',
                 }}
                 className="h-full"
             />

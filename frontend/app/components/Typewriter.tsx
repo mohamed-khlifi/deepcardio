@@ -11,7 +11,7 @@ interface TypewriterProps {
 
 export default function Typewriter({
                                        text,
-                                       speed = 10,    // ← faster: 30ms per char (≈33 chars/sec)
+                                       speed = 5,    // ← faster: 30ms per char (≈33 chars/sec)
                                    }: TypewriterProps) {
     const [displayed, setDisplayed] = useState('');
 
@@ -23,10 +23,10 @@ export default function Typewriter({
             setDisplayed((prev) => prev + text.charAt(index));
             index++;
             if (index >= text.length) clearInterval(interval);
-        }, speed);
+        }, 10);
 
         return () => clearInterval(interval);
-    }, [text, speed]);
+    }, [text, 10]);
 
     return <>{displayed}</>;
 }

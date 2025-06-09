@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { CreatePatientModal } from '@/app/components/CreatePatientModal';
+import  CreatePatientModal  from '@/app/components/CreatePatientModal';
 import { PatientDetailsModal } from '@/app/components/PatientDetailsModal';
 import { useAuth0 } from '@auth0/auth0-react';
 import {
@@ -37,9 +37,8 @@ export function PatientSearch() {
     const [noResult, setNoResult] = useState(false);
 
     const [openModal, setOpenModal] = useState(false);
-    const [selectedId, setSelectedId] = useState<number | null>(null); // ← NEW
+    const [selectedId, setSelectedId] = useState<number | null>(null);
 
-    /* ------------------------------------------------------------------ */
     const handleSearch = async () => {
         if (!firstName && !lastName && !dob) {
             setError('Please enter at least one filter to search.');
@@ -82,16 +81,16 @@ export function PatientSearch() {
         if (noResult) setNoResult(false);
     };
 
-    /* ------------------------------------------------------------------ */
     return (
         <>
-            <div className="max-w-xl mx-auto animate-fade-in space-y-8">
-                <h1 className="text-3xl font-bold text-center">Find or Add a Patient</h1>
+            <div data-dc-test-id="patient-search-container" className="max-w-xl mx-auto animate-fade-in space-y-8">
+                <h1 data-dc-test-id="patient-search-title" className="text-3xl font-bold text-center">Find or Add a Patient</h1>
 
                 {/* -------- search form -------- */}
-                <div className="space-y-4">
-                    <div className="flex gap-4">
+                <div data-dc-test-id="search-form" className="space-y-4">
+                    <div data-dc-test-id="name-inputs" className="flex gap-4">
                         <input
+                            data-dc-test-id="first-name-input"
                             type="text"
                             placeholder="First name"
                             className="input-style flex-1"
@@ -102,6 +101,7 @@ export function PatientSearch() {
                             }}
                         />
                         <input
+                            data-dc-test-id="last-name-input"
                             type="text"
                             placeholder="Last name"
                             className="input-style flex-1"
@@ -114,6 +114,7 @@ export function PatientSearch() {
                     </div>
 
                     <input
+                        data-dc-test-id="dob-input"
                         type="date"
                         placeholder="Date of birth"
                         className="input-style w-full"
@@ -124,8 +125,9 @@ export function PatientSearch() {
                         }}
                     />
 
-                    <div className="space-y-2">
+                    <div data-dc-test-id="search-actions" className="space-y-2">
                         <Button
+                            data-dc-test-id="search-button"
                             className="w-full gap-2"
                             onClick={handleSearch}
                             disabled={loading}
@@ -135,26 +137,30 @@ export function PatientSearch() {
                         </Button>
 
                         {error && (
-                            <p className="text-red-600 text-sm flex items-center gap-2 animate-fade-in">
+                            <p data-dc-test-id="error-message" className="text-red-600 text-sm flex items-center gap-2 animate-fade-in">
                                 <AlertCircle className="size-4" /> {error}
                             </p>
                         )}
                     </div>
                 </div>
 
-                <hr className="border-gray-200" />
+                <hr data-dc-test-id="divider" className="border-gray-200" />
 
                 {/* -------- create button -------- */}
-                <div className="text-center">
-                    <p className="mb-4 text-gray-600">Can’t find the patient?</p>
-                    <Button variant="outline" onClick={() => setOpenModal(true)}>
+                <div data-dc-test-id="create-section" className="text-center">
+                    <p data-dc-test-id="create-prompt" className="mb-4 text-gray-600">Can’t find the patient?</p>
+                    <Button
+                        data-dc-test-id="create-button"
+                        variant="outline"
+                        onClick={() => setOpenModal(true)}
+                    >
                         ➕ Create New Patient
                     </Button>
                 </div>
 
                 {/* -------- no-result info -------- */}
                 {noResult && !loading && (
-                    <div className="flex items-center gap-2 text-gray-600 text-sm mt-6 animate-fade-in">
+                    <div data-dc-test-id="no-results-info" className="flex items-center gap-2 text-gray-600 text-sm mt-6 animate-fade-in">
                         <Info className="size-4" />
                         No patients found for those filters.
                     </div>
@@ -162,31 +168,32 @@ export function PatientSearch() {
 
                 {/* -------- search results -------- */}
                 {results.length > 0 && (
-                    <div className="mt-10 space-y-4">
-                        <h2 className="text-xl font-semibold">Results</h2>
+                    <div data-dc-test-id="results-section" className="mt-10 space-y-4">
+                        <h2 data-dc-test-id="results-title" className="text-xl font-semibold">Results</h2>
 
-                        <ul className="space-y-3">
+                        <ul data-dc-test-id="results-list" className="space-y-3">
                             {results.map((p) => (
                                 <li
                                     key={p.id}
+                                    data-dc-test-id={`result-item-${p.id}`}
                                     onClick={() => {
                                         setSelectedId(p.id);
                                     }}
                                     className="cursor-pointer rounded-lg border bg-white shadow-sm hover:shadow-md transition-all p-4 flex items-center gap-4 group"
                                 >
                                     <User className="size-8 text-primary shrink-0" />
-                                    <div className="flex-1">
-                                        <div className="font-medium">
+                                    <div data-dc-test-id="result-info" className="flex-1">
+                                        <div data-dc-test-id="result-name" className="font-medium">
                                             {p.first_name} {p.last_name}
                                         </div>
-                                        <div className="text-sm text-gray-500 flex items-center gap-2">
+                                        <div data-dc-test-id="result-dob" className="text-sm text-gray-500 flex items-center gap-2">
                                             <Calendar className="size-3" />
                                             {new Date(p.dob).toLocaleDateString()}
                                         </div>
                                     </div>
-                                    <span className="rounded-full bg-primary/10 text-primary px-3 py-1 text-xs">
-                    {p.gender}
-                  </span>
+                                    <span data-dc-test-id="result-gender" className="rounded-full bg-primary/10 text-primary px-3 py-1 text-xs">
+                                        {p.gender}
+                                    </span>
                                     <ChevronRight className="size-4 text-gray-400 group-hover:text-primary transition-colors" />
                                 </li>
                             ))}
@@ -197,11 +204,13 @@ export function PatientSearch() {
 
             {/* modal components */}
             <CreatePatientModal
+                data-dc-test-id="create-patient-modal"
                 open={openModal}
                 onClose={() => setOpenModal(false)}
             />
 
             <PatientDetailsModal
+                data-dc-test-id="patient-details-modal"
                 open={selectedId !== null}
                 patientId={selectedId}
                 onClose={() => setSelectedId(null)}

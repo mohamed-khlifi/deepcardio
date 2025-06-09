@@ -1,7 +1,7 @@
 // File: app/components/SummaryPanel.tsx
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import {
     ClipboardList,
     FileHeart,
@@ -10,16 +10,36 @@ import {
     Send,
     ShieldCheck,
     Sparkles,
-    Trash2,
     Pencil,
+    Trash2,
 } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import Typewriter from './Typewriter';
-import type { RiskSummary } from '@/lib/llm';
+import { Button } from '@/components/ui/button';
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogFooter,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { useAuth0 } from '@auth0/auth0-react';
+import { toast } from 'sonner';
 
+const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8001/api/v1';
+
+/* ------------------------------------------------------------------ */
+/*                              types                                 */
+/* ------------------------------------------------------------------ */
 type Item = { id: number; label: string; extra?: string };
 
-// now has optional risk_summary in place of a raw `risks` array
+export interface RiskSummary {
+    value: string;
+    reason: string;
+    score: number;
+}
+
 export interface SummaryBuckets {
     risk_summary?: RiskSummary;
     follow_up_actions: Item[];
@@ -30,41 +50,187 @@ export interface SummaryBuckets {
     tests_to_order: Item[];
 }
 
-/**
- * We add four new callbacks for follow_up_actions:
- *   onAddFollowUp: () => void
- *   onEditFollowUp: (id: number, currentLabel: string, currentExtra: string) => void
- *   onDeleteFollowUp: (id: number) => void
- */
-interface SummaryPanelProps extends SummaryBuckets {
-    onAddFollowUp: () => void;
-    onEditFollowUp: (id: number, currentLabel: string, currentExtra: string) => void;
-    onDeleteFollowUp: (id: number) => void;
+/* ------------------------------------------------------------------ */
+/*                         helper components                          */
+/* ------------------------------------------------------------------ */
+const Card: React.FC<{
+    title: string;
+    icon: React.ReactNode;
+    children: React.ReactNode;
+}> = ({ title, icon, children }) => (
+    <div className="rounded-2xl border bg-white shadow-sm flex flex-col">
+        <header className="flex items-center gap-2 border-b bg-gray-50/70 px-5 py-3 rounded-t-2xl">
+            <span className="text-primary">{icon}</span>
+            <h3 className="text-sm font-semibold text-primary">{title}</h3>
+        </header>
+        <div className="px-5 py-4 space-y-3 text-sm text-gray-700 grow max-h-[250px] overflow-y-auto">
+            {children}
+        </div>
+    </div>
+);
+
+const Empty = () => (
+    <p className="italic text-gray-400 select-none">No data yet.</p>
+);
+
+/* ------------------------------------------------------------------ */
+/*                Follow-up action row with edit/remove               */
+/* ------------------------------------------------------------------ */
+function FollowUpActionRow({
+                               item,
+                               onDelete,
+                               onUpdate,
+                           }: {
+    item: Item;
+    onDelete: (id: number) => void;
+    onUpdate: (id: number, label: string, extra: string) => void;
+}) {
+    const [editing, setEditing] = useState(false);
+    const [label, setLabel] = useState(item.label);
+    const [extra, setExtra] = useState(item.extra ?? '');
+
+    const save = () => {
+        if (!label.trim()) return;
+        onUpdate(item.id, label.trim(), extra.trim());
+        setEditing(false);
+    };
+
+    return (
+        <div className="group flex items-center gap-3 border border-gray-100 rounded-lg px-3 py-2 bg-gray-50 shadow-sm">
+            {editing ? (
+                <div className="flex-1 flex flex-col gap-1">
+                    <Input
+                        value={label}
+                        onChange={(e) => setLabel(e.target.value)}
+                        placeholder="Action"
+                        className="h-8"
+                    />
+                    <Input
+                        value={extra}
+                        onChange={(e) => setExtra(e.target.value)}
+                        placeholder="Interval"
+                        className="h-8"
+                    />
+                    <div className="flex gap-2 mt-1">
+                        <Button size="sm" onClick={save}>
+                            Save
+                        </Button>
+                        <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                                setEditing(false);
+                                setLabel(item.label);
+                                setExtra(item.extra ?? '');
+                            }}
+                        >
+                            Cancel
+                        </Button>
+                    </div>
+                </div>
+            ) : (
+                <>
+                    <div className="flex-1">
+                        <p className="font-medium">{item.label}</p>
+                        <p className="text-xs text-gray-500">{`Interval: ${item.extra ?? '—'}`}</p>
+                    </div>
+
+                    {/* icons appear on hover */}
+                    <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Pencil
+                            className="size-4 cursor-pointer hover:text-primary"
+                            onClick={() => setEditing(true)}
+                        />
+                        <Trash2
+                            className="size-4 cursor-pointer hover:text-red-600"
+                            onClick={() => onDelete(item.id)}
+                        />
+                    </div>
+                </>
+            )}
+        </div>
+    );
 }
 
-export function SummaryPanel({
-                                 risk_summary,
-                                 follow_up_actions,
-                                 recommendations,
-                                 referrals,
-                                 life_style_advice,
-                                 presumptive_diagnoses,
-                                 tests_to_order,
-                                 onAddFollowUp,
-                                 onEditFollowUp,
-                                 onDeleteFollowUp,
-                             }: SummaryPanelProps) {
-    // ❶ If absolutely nothing at all (no buckets AND no risk), show a centered “no summary” message
-    const allBucketsEmpty =
-        !risk_summary &&
-        follow_up_actions.length === 0 &&
-        recommendations.length === 0 &&
-        referrals.length === 0 &&
-        life_style_advice.length === 0 &&
-        presumptive_diagnoses.length === 0 &&
-        tests_to_order.length === 0;
+/* ------------------------------------------------------------------ */
+/*                           main export                              */
+/* ------------------------------------------------------------------ */
+export function SummaryPanel(init: SummaryBuckets) {
+    const { getAccessTokenSilently } = useAuth0();
 
-    if (allBucketsEmpty) {
+    /* we keep follow-up actions in local state so they mutate live */
+    const [follow, setFollow] = useState<Item[]>(init.follow_up_actions);
+
+    /* -------------------------------- handlers ---------------------- */
+    const deleteAction = async (id: number) => {
+        /* optimistic UI: remove locally first */
+        setFollow((prev) => prev.filter((f) => f.id !== id));
+
+        try {
+            const token = await getAccessTokenSilently();
+            const res = await fetch(`${API}/follow-up-actions/${id}`, {
+                method: 'DELETE',
+                headers: { Authorization: `Bearer ${token}` },
+            });
+            if (!res.ok) throw new Error(await res.text());
+            toast.success('Deleted');
+        } catch (err) {
+            console.error(err);
+            toast.error('Could not delete');
+            /* rollback */
+            await reloadFollow();
+        }
+    };
+
+    const updateAction = async (id: number, label: string, extra: string) => {
+        const body = { action: label, interval: extra };
+        /* optimistic */
+        setFollow((prev) =>
+            prev.map((f) => (f.id === id ? { ...f, label, extra } : f))
+        );
+
+        try {
+            const token = await getAccessTokenSilently();
+            const res = await fetch(`${API}/follow-up-actions/${id}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${token}`,
+                },
+                body: JSON.stringify(body),
+            });
+            if (!res.ok) throw new Error(await res.text());
+            toast.success('Updated');
+        } catch (err) {
+            console.error(err);
+            toast.error('Could not update');
+            /* rollback */
+            await reloadFollow();
+        }
+    };
+
+    const reloadFollow = async () => {
+        try {
+            const token = await getAccessTokenSilently();
+            const r = await fetch(`${API}/follow-up-actions/by-patient`, {
+                headers: { Authorization: `Bearer ${token}` },
+            });
+            if (r.ok) setFollow(await r.json());
+        } catch {
+            /* ignore */
+        }
+    };
+
+    /* --------------------------- risk card -------------------------- */
+    if (
+        !init.risk_summary &&
+        follow.length === 0 &&
+        init.recommendations.length === 0 &&
+        init.referrals.length === 0 &&
+        init.life_style_advice.length === 0 &&
+        init.presumptive_diagnoses.length === 0 &&
+        init.tests_to_order.length === 0
+    ) {
         return (
             <div className="w-full flex items-center justify-center p-10">
                 <p className="text-gray-500 italic">No summary data available yet.</p>
@@ -72,95 +238,32 @@ export function SummaryPanel({
         );
     }
 
-    // ❷ Otherwise, render the risk card first (with a “no risk” message if absent),
-    //     then render the Follow‐up Actions card (with edit + delete + add), then other buckets.
-
-    const Card = ({
-                      title,
-                      icon,
-                      children,
-                  }: {
-        title: string;
-        icon: React.ReactNode;
-        children: React.ReactNode;
-    }) => (
-        <div className="rounded-2xl border bg-white shadow-sm flex flex-col">
-            <header className="flex items-center gap-2 border-b bg-gray-50/70 px-5 py-3 rounded-t-2xl">
-                <span className="text-primary">{icon}</span>
-                <h3 className="text-sm font-semibold text-primary">{title}</h3>
-            </header>
-            <div className="px-5 py-4 space-y-3 text-sm text-gray-700 grow max-h-[250px] overflow-y-auto">
-                {children}
-            </div>
-        </div>
-    );
-
-    const Empty = () => <p className="italic text-gray-400">No data yet.</p>;
-
-    /**
-     * We wrap each entry with edit+delete icons
-     */
-    const EntryWithActions = ({
-                                  id,
-                                  main,
-                                  sub,
-                              }: {
-        id: number;
-        main: string;
-        sub?: string;
-    }) => (
-        <div className="relative border border-gray-100 rounded-lg px-3 py-2 bg-gray-50 shadow-sm flex justify-between items-start">
-            <div>
-                <p className="font-medium">{main}</p>
-                {sub && <p className="text-xs text-gray-500 mt-1">{sub}</p>}
-            </div>
-            <div className="flex space-x-2">
-                {/* Edit button */}
-                <button
-                    onClick={() => onEditFollowUp(id, main, sub ?? '')}
-                    className="text-gray-500 hover:text-primary"
-                    title="Edit"
-                >
-                    <Pencil className="h-4 w-4" />
-                </button>
-                {/* Delete button */}
-                <button
-                    onClick={() => onDeleteFollowUp(id)}
-                    className="text-gray-500 hover:text-red-600"
-                    title="Delete"
-                >
-                    <Trash2 className="h-4 w-4" />
-                </button>
-            </div>
-        </div>
-    );
-
     return (
         <>
-            {/* ── Risk Card ── */}
+            {/* ─────────────────── risk summary card ─────────────────── */}
             <div className="lg:w-1/2 w-full bg-white rounded-2xl shadow-sm border p-6 mb-6">
                 <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-2">
                         <ShieldCheck className="h-5 w-5 text-primary" />
                         <h2 className="text-lg font-semibold text-primary">Overall Risk</h2>
                     </div>
-                    {risk_summary ? (
+                    {init.risk_summary ? (
                         <span className="bg-primary/10 text-primary font-semibold px-2 py-1 rounded-lg text-sm">
-              {risk_summary.score}
+              {init.risk_summary.score}
             </span>
                     ) : (
                         <span className="text-gray-500 italic">No risk data</span>
                     )}
                 </div>
 
-                {risk_summary ? (
+                {init.risk_summary ? (
                     <>
-                        <Progress value={risk_summary.score} className="mb-4" />
+                        <Progress value={init.risk_summary.score} className="mb-4" />
                         <p className="text-center font-medium text-lg mb-2">
-                            {risk_summary.value}
+                            {init.risk_summary.value}
                         </p>
                         <p className="text-sm text-gray-600">
-                            <Typewriter text={risk_summary.reason} speed={50} />
+                            <Typewriter text={init.risk_summary.reason} speed={50} />
                         </p>
                     </>
                 ) : (
@@ -170,105 +273,111 @@ export function SummaryPanel({
                 )}
             </div>
 
-            {/* ── Follow‐up Actions ── */}
-            <div className="rounded-2xl border bg-white shadow-sm flex flex-col">
-                <header className="flex items-center justify-between border-b bg-gray-50/70 px-5 py-3 rounded-t-2xl">
-                    <div className="flex items-center gap-2">
-                        <Repeat className="size-4 text-primary" />
-                        <h3 className="text-sm font-semibold text-primary">Follow‐up Actions</h3>
-                    </div>
-                    <button
-                        onClick={onAddFollowUp}
-                        className="text-primary hover:bg-primary/10 px-2 py-1 rounded-md text-xs font-semibold uppercase"
-                    >
-                        + Add
-                    </button>
-                </header>
-                <div className="px-5 py-4 space-y-3 text-sm text-gray-700 grow max-h-[250px] overflow-y-auto">
-                    {follow_up_actions.length ? (
-                        follow_up_actions.map((f) => (
-                            <EntryWithActions
+            {/* ─────────────────── rest of the buckets ─────────────────── */}
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                {/* Follow-up Actions with edit/delete */}
+                <Card title="Follow-up Actions" icon={<Repeat className="size-4" />}>
+                    {follow.length ? (
+                        follow.map((f) => (
+                            <FollowUpActionRow
                                 key={f.id}
-                                id={f.id}
-                                main={f.label}
-                                sub={`Interval: ${f.extra ?? '—'}`}
+                                item={f}
+                                onDelete={deleteAction}
+                                onUpdate={updateAction}
                             />
                         ))
                     ) : (
                         <Empty />
                     )}
-                </div>
-            </div>
-
-            {/* ── Other Buckets (read‐only, no edit controls) ── */}
-            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                <Card title="Recommendations" icon={<ClipboardList className="size-4" />}>
-                    {recommendations.length ? (
-                        recommendations.map((r) => <Entry key={r.id} main={r.label} />)
-                    ) : (
-                        <Empty />
-                    )}
                 </Card>
 
-                <Card title="Referrals" icon={<Send className="size-4" />}>
-                    {referrals.length ? (
-                        referrals.map((r) => (
-                            <Entry key={r.id} main={r.label} sub={`Reason: ${r.extra ?? '—'}`} />
+                {/* Recommendations */}
+                <Card title="Recommendations" icon={<ClipboardList className="size-4" />}>
+                    {init.recommendations.length ? (
+                        init.recommendations.map((r) => (
+                            <p
+                                key={r.id}
+                                className="border border-gray-100 rounded-lg px-3 py-2 bg-gray-50 shadow-sm"
+                            >
+                                {r.label}
+                            </p>
                         ))
                     ) : (
                         <Empty />
                     )}
                 </Card>
 
-                <Card title="Lifestyle Advice" icon={<Sparkles className="size-4" />}>
-                    {life_style_advice.length ? (
-                        life_style_advice.map((l) => <Entry key={l.id} main={l.label} />)
+                {/* Referrals */}
+                <Card title="Referrals" icon={<Send className="size-4" />}>
+                    {init.referrals.length ? (
+                        init.referrals.map((r) => (
+                            <div
+                                key={r.id}
+                                className="border border-gray-100 rounded-lg px-3 py-2 bg-gray-50 shadow-sm"
+                            >
+                                <p className="font-medium">{r.label}</p>
+                                <p className="text-xs text-gray-500">{`Reason: ${r.extra ?? '—'}`}</p>
+                            </div>
+                        ))
                     ) : (
                         <Empty />
                     )}
                 </Card>
 
+                {/* Lifestyle Advice */}
+                <Card title="Lifestyle Advice" icon={<Sparkles className="size-4" />}>
+                    {init.life_style_advice.length ? (
+                        init.life_style_advice.map((l) => (
+                            <p
+                                key={l.id}
+                                className="border border-gray-100 rounded-lg px-3 py-2 bg-gray-50 shadow-sm"
+                            >
+                                {l.label}
+                            </p>
+                        ))
+                    ) : (
+                        <Empty />
+                    )}
+                </Card>
+
+                {/* Presumptive Diagnoses */}
                 <Card
                     title="Presumptive Diagnoses"
                     icon={<FileHeart className="size-4" />}
                 >
-                    {presumptive_diagnoses.length ? (
-                        presumptive_diagnoses.map((d) => (
-                            <Entry
+                    {init.presumptive_diagnoses.length ? (
+                        init.presumptive_diagnoses.map((d) => (
+                            <div
                                 key={d.id}
-                                main={d.label}
-                                sub={`Confidence: ${d.extra ?? '—'}`}
-                            />
+                                className="border border-gray-100 rounded-lg px-3 py-2 bg-gray-50 shadow-sm"
+                            >
+                                <p className="font-medium">{d.label}</p>
+                                <p className="text-xs text-gray-500">{`Confidence: ${
+                                    d.extra ?? '—'
+                                }`}</p>
+                            </div>
                         ))
                     ) : (
                         <Empty />
                     )}
                 </Card>
 
+                {/* Tests to Order */}
                 <Card title="Tests to Order" icon={<FlaskConical className="size-4" />}>
-                    {tests_to_order.length ? (
-                        tests_to_order.map((t) => <Entry key={t.id} main={t.label} />)
+                    {init.tests_to_order.length ? (
+                        init.tests_to_order.map((t) => (
+                            <p
+                                key={t.id}
+                                className="border border-gray-100 rounded-lg px-3 py-2 bg-gray-50 shadow-sm"
+                            >
+                                {t.label}
+                            </p>
+                        ))
                     ) : (
                         <Empty />
                     )}
                 </Card>
             </div>
         </>
-    );
-}
-
-// Re‐export Entry for use in other, read‐only buckets
-function Entry({
-                   main,
-                   sub,
-               }: {
-    main: string;
-    sub?: string;
-}) {
-    return (
-        <div className="border border-gray-100 rounded-lg px-3 py-2 bg-gray-50 shadow-sm">
-            <p className="font-medium">{main}</p>
-            {sub && <p className="text-xs text-gray-500 mt-1">{sub}</p>}
-        </div>
     );
 }

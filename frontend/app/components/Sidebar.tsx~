@@ -1,87 +1,114 @@
-// File: app/components/Sidebar.tsx
 'use client';
 
-import React from 'react';
-import Link from 'next/link';
+import { cn } from '@/lib/utils';
+import { buttonVariants } from '@/components/ui/button';
 import {
     Home,
-    ListChecks,
-    FileText,
+    Stethoscope,
+    History,
     HeartPulse,
-    PieChart,
+    FlaskConical,
+    NotebookTabs,
+    Languages,
 } from 'lucide-react';
+
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+
+import { useState } from 'react';
 
 export type Section =
     | 'home'
     | 'symptoms'
     | 'history'
     | 'vitals'
+    | 'tests'
     | 'summary';
+
+const NAV: { id: Section; label: string; icon: React.ReactNode }[] = [
+    { id: 'home',     label: 'Dashboard',        icon: <Home className="size-4" /> },
+    { id: 'symptoms', label: 'Symptoms',         icon: <Stethoscope className="size-4" /> },
+    { id: 'history',  label: 'Personal History', icon: <History className="size-4" /> },
+    { id: 'vitals',   label: 'Vital Signs',      icon: <HeartPulse className="size-4" /> },
+    { id: 'tests',    label: 'Test Results',     icon: <FlaskConical className="size-4" /> },
+    { id: 'summary',  label: 'Summary',          icon: <NotebookTabs className="size-4" /> },
+];
 
 export function Sidebar({
                             active,
                             onChange,
                         }: {
     active: Section;
-    onChange: (section: Section) => void;
+    onChange: (s: Section) => void;
 }) {
-    const btnBase =
-        'w-full flex items-center gap-2 px-4 py-3 rounded hover:bg-gray-100 transition-colors';
-    const btnActive = 'bg-gray-200';
+    const [language, setLanguage] = useState<'en' | 'fr'>('en');
+
+    const handleLanguageChange = (lang: 'en' | 'fr') => {
+        setLanguage(lang);
+        // Optionally trigger i18n or refresh here
+    };
 
     return (
-        <aside className="w-64 border-r bg-white flex flex-col">
-            <nav className="py-6 space-y-1">
-                <button
-                    className={`${btnBase} ${
-                        active === 'home' ? btnActive : ''
-                    }`}
-                    onClick={() => onChange('home')}
-                >
-                    <Home className="size-5 text-gray-600" />
-                    <span>Info</span>
-                </button>
+        <aside className="w-64 bg-white shadow-md flex flex-col justify-between">
+            <div>
+                <div className="h-16 flex items-center justify-center font-bold text-xl border-b">
+                    DeepCardio
+                </div>
 
-                <button
-                    className={`${btnBase} ${
-                        active === 'symptoms' ? btnActive : ''
-                    }`}
-                    onClick={() => onChange('symptoms')}
-                >
-                    <ListChecks className="size-5 text-gray-600" />
-                    <span>Symptoms</span>
-                </button>
+                <nav className="flex-1 p-4 space-y-2">
+                    {NAV.map(({ id, label, icon }) => (
+                        <button
+                            key={id}
+                            onClick={() => onChange(id)}
+                            className={cn(
+                                buttonVariants({
+                                    variant: active === id ? 'default' : 'ghost',
+                                    size: 'sm',
+                                }),
+                                'w-full justify-start',
+                            )}
+                        >
+                            {icon}
+                            {label}
+                        </button>
+                    ))}
+                </nav>
+            </div>
 
-                <button
-                    className={`${btnBase} ${
-                        active === 'history' ? btnActive : ''
-                    }`}
-                    onClick={() => onChange('history')}
-                >
-                    <FileText className="size-5 text-gray-600" />
-                    <span>History</span>
-                </button>
-
-                <button
-                    className={`${btnBase} ${
-                        active === 'vitals' ? btnActive : ''
-                    }`}
-                    onClick={() => onChange('vitals')}
-                >
-                    <HeartPulse className="size-5 text-gray-600" />
-                    <span>Vitals</span>
-                </button>
-
-                <button
-                    className={`${btnBase} ${
-                        active === 'summary' ? btnActive : ''
-                    }`}
-                    onClick={() => onChange('summary')}
-                >
-                    <PieChart className="size-5 text-gray-600" />
-                    <span>Summary</span>
-                </button>
-            </nav>
+            <div className="p-4 border-t">
+                <DropdownMenu>
+                    <DropdownMenuTrigger
+                        className={cn(
+                            buttonVariants({ variant: 'ghost', size: 'sm' }),
+                            'w-full justify-between text-muted-foreground hover:text-foreground',
+                        )}
+                    >
+                        <span className="flex items-center gap-2">
+                            <Languages className="size-4" />
+                            {language === 'en' ? 'English' : 'Français'}
+                        </span>
+                        <span className="text-xs text-gray-400">▼</span>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent className="w-full mt-2">
+                        <DropdownMenuItem
+                            onClick={() => handleLanguageChange('en')}
+                            className={cn(language === 'en' && 'font-semibold')}
+                        >
+                            English
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                            onClick={() => handleLanguageChange('fr')}
+                            className={cn(language === 'fr' && 'font-semibold')}
+                        >
+                            Français
+                        </DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
+            </div>
         </aside>
     );
 }
