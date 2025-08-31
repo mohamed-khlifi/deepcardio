@@ -1,6 +1,6 @@
 # File: models/appointment.py
 from sqlalchemy import Column, Integer, DateTime, String, ForeignKey
-from core.config import Base
+from backend.app.core.config import Base
 
 class Appointment(Base):
     __tablename__ = "appointments"

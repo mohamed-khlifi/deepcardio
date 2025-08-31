@@ -1,5 +1,5 @@
 from sqlalchemy import Column, Integer, String, Text
-from core.config import Base
+from backend.app.core.config import Base
 
 class FollowUpActionCatalog(Base):
     __tablename__ = "follow_up_actions_catalog"

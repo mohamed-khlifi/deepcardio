@@ -14,7 +14,7 @@ SSL_CA_PATH = os.path.join(BASE_DIR, "certs", "DigiCertGlobalRootCA.crt.pem")
 
 DATABASE_URL = (
     f"mysql+pymysql://{DB_USERNAME}:{DB_PASSWORD}@{DB_HOST}/{DB_NAME}"
-    f"?ssl_ca={SSL_CA_PATH}&ssl_verify_cert=true"
+    f"?ssl_ca={SSL_CA_PATH}&ssl_verify_cert=false"
 )
 
 engine = create_engine(DATABASE_URL, echo=True)

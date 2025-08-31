@@ -1,15 +1,19 @@
 from pydantic import BaseModel
-from datetime import date
+from datetime import date, datetime
+from typing import Optional
 
-class PatientPersonalHistoryCreate(BaseModel):
+class PatientHistoryCreate(BaseModel):
     patient_id: int
     history_id: int
-    date_recorded: date
+    date_recorded: Optional[date] = None
 
-class PatientPersonalHistoryResponse(BaseModel):
+class PatientHistoryResponse(BaseModel):
+    id: int
     patient_id: int
     history_id: int
-    date_recorded: date
+    date_recorded: Optional[date]
+    recorded_at: datetime
+    resolved_at: Optional[datetime]
 
     class Config:
         from_attributes = True

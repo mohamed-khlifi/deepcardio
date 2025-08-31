@@ -1,22 +1,15 @@
-# File: backend/app/models/patient_follow_up_action.py
-
-from sqlalchemy import Column, Integer, Text, String, ForeignKey, TIMESTAMP, func
-from core.config import Base
+from sqlalchemy import Column, Integer, String, Text, ForeignKey, DateTime, Boolean
+from sqlalchemy.sql import func
+from backend.app.core.config import Base
 
 class PatientFollowUpAction(Base):
     __tablename__ = "patient_follow_up_actions"
 
-    id = Column(Integer, primary_key=True, index=True)
-    patient_id = Column(
-        Integer,
-        ForeignKey("patients.patient_id", ondelete="CASCADE"),
-        nullable=False,
-    )
+    id = Column(Integer, primary_key=True, autoincrement=True)
     action = Column(Text, nullable=False)
     follow_up_interval = Column(String(50), nullable=True)
-    created_at = Column(
-        TIMESTAMP, server_default=func.now(), nullable=False
-    )
-    updated_at = Column(
-        TIMESTAMP, server_default=func.now(), server_onupdate=func.now(), nullable=False
-    )
+    patient_id = Column(Integer, ForeignKey("patients.patient_id", ondelete="CASCADE"), nullable=False)
+    doctor_id = Column(Integer, ForeignKey("doctors.id", ondelete="CASCADE"), nullable=False)
+    auto_generated = Column(Boolean, nullable=False, default=False)
+    created_at = Column(DateTime, nullable=False, server_default=func.current_timestamp())
+    updated_at = Column(DateTime, nullable=False, server_default=func.current_timestamp(), onupdate=func.current_timestamp())

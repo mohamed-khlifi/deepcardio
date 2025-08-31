@@ -1,5 +1,5 @@
 from sqlalchemy import Column, Integer, String, Text
-from core.config import Base
+from backend.app.core.config import Base
 
 class PresumptiveDiagnosisCatalog(Base):
     __tablename__ = "presumptive_diagnosis_catalog"

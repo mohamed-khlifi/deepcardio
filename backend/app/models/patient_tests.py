@@ -1,11 +1,15 @@
-from sqlalchemy import Column, String, Integer, Date, Text, ForeignKey
-from core.config import Base
+from sqlalchemy import Column, Integer, String, Date, Text, DateTime, ForeignKey
+from sqlalchemy.sql import func
+from backend.app.core.config import Base
 
 class PatientTests(Base):
     __tablename__ = "patient_tests"
 
-    patient_id = Column(Integer, ForeignKey("patients.patient_id"), primary_key=True)
-    test_id = Column(String(100), ForeignKey("tests_dict.id"), primary_key=True)
-    test_date = Column(Date, primary_key=True)
-    result_value = Column(String(50))
-    notes = Column(Text)
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    patient_id = Column(Integer, ForeignKey("patients.patient_id", ondelete="CASCADE"), nullable=False)
+    test_id = Column(String(100), ForeignKey("tests_dict.id", ondelete="CASCADE"), nullable=False)
+    test_date = Column(Date, nullable=True)
+    result_value = Column(String(50), nullable=True)
+    notes = Column(Text, nullable=True)
+    recorded_at = Column(DateTime, nullable=False, server_default=func.current_timestamp())
+    resolved_at = Column(DateTime, nullable=True)

@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session
-from models.doctor import Doctor
-from core.deps import get_db
-from utils.auth_utils import  decode_token
+from backend.app.models.doctor import Doctor
+from backend.app.core.deps import get_db
+from backend.app.utils.auth_utils import  decode_token
 from pydantic import BaseModel
 
 doctors_router = APIRouter()

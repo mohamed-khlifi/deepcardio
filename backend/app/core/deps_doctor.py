@@ -2,9 +2,9 @@
 
 from fastapi import Depends, Request
 from sqlalchemy.orm import Session
-from core.deps import get_db
-from utils.auth import get_token_auth_header, verify_jwt
-from models.doctor import Doctor
+from backend.app.core.deps import get_db
+from backend.app.utils.auth import get_token_auth_header, verify_jwt
+from backend.app.models.doctor import Doctor
 from fastapi import HTTPException
 
 def get_current_doctor(request: Request, db: Session = Depends(get_db)):

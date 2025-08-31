@@ -1,5 +1,5 @@
 from sqlalchemy import Column, Integer, String, Text
-from core.config import Base
+from backend.app.core.config import Base
 
 class TestsToOrderCatalog(Base):
     __tablename__ = "tests_to_order_catalog"

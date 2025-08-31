@@ -1,5 +1,5 @@
 from sqlalchemy import Column, Integer, String, Enum, ForeignKey
-from core.config import Base
+from backend.app.core.config import Base
 
 class TestsDecisionRule(Base):
     __tablename__ = "tests_decision_rules"

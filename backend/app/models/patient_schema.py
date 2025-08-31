@@ -42,17 +42,20 @@ class PatientTest(BaseModel):
 
 class FollowUpAction(BaseModel):
     id: int
-    interval: str
+    interval: Optional[str]
     action: str
+    auto_generated: bool
 
 class Recommendation(BaseModel):
     id: int
     recommendation: str
+    auto_generated: bool
 
 class Referral(BaseModel):
     id: int
     specialist: str
     reason: str
+    auto_generated: bool
 
 class Risk(BaseModel):
     id: int
@@ -62,15 +65,18 @@ class Risk(BaseModel):
 class LifeStyleAdvice(BaseModel):
     id: int
     advice: str
+    auto_generated: bool
 
 class PresumptiveDiagnosis(BaseModel):
     id: int
     diagnosis_name: str
-    confidence_level: str
+    confidence_level: Optional[str]
+    auto_generated: bool
 
 class TestToOrder(BaseModel):
     id: int
     test_to_order: str
+    auto_generated: bool
 
 class Demographics(BaseModel):
     first_name: str
@@ -79,6 +85,13 @@ class Demographics(BaseModel):
     date_of_birth: date
     age: int
     ethnicity: Optional[str]
+
+    weight: int
+    height: int
+
+    smoke: int
+    alco: int
+    active: int
 
 class ContactInfo(BaseModel):
     phone: Optional[str]
@@ -122,3 +135,8 @@ class PatientCreate(BaseModel):
     occupation: Optional[str] = None
     insurance_provider: Optional[str] = None
     address: Optional[str] = None
+    weight: Optional[int] = 70
+    height: Optional[int] = 170
+    smoke: Optional[int] = 0
+    alco: Optional[int] = 0
+    active: Optional[int] = 1

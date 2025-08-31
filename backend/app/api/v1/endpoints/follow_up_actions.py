@@ -1,258 +1,240 @@
-# File: backend/app/api/v1/endpoints/follow_up_actions.py
-
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from typing import List
+from backend.app.models.patient_follow_up_action import PatientFollowUpAction
+from backend.app.models.follow_up_actions_catalog import FollowUpActionCatalog
+from backend.app.models.patient import Patient
+from backend.app.models.doctor_patient import DoctorPatient
+from backend.app.models.doctor import Doctor
+from backend.app.core.deps import get_db
+from backend.app.core.deps_doctor import get_current_doctor
+from pydantic import BaseModel
 
-from core.deps import get_db
-from core.deps_doctor import get_current_doctor
-from models import DoctorPatient
-from models.doctor import Doctor
-from models.patient import Patient
-from models.patient_schema import FollowUpAction as FollowUpActionOut
-from pydantic import BaseModel, constr
-
-router = APIRouter(
-    prefix="/follow-up-actions",
-    tags=["Follow-up Actions"],
-)
-
-#
-# ─── Pydantic SCHEMAS for Create / Update ─────────────────────────────────
-#
-
-class FollowUpActionCreate(BaseModel):
-    patient_id: int
-    action: str
-    follow_up_interval: constr(max_length=50) | None = None
+follow_up_actions_router = APIRouter(prefix="/follow-up-actions", tags=["Follow-up Actions"])
 
 class FollowUpActionUpdate(BaseModel):
     action: str
-    follow_up_interval: constr(max_length=50) | None = None
+    follow_up_interval: str | None = None
+    patient_id: int
 
-
-#
-# ────────────────────────────────────────────────────────────────────────────
-#  1) Create a new follow-up action FOR A SPECIFIC PATIENT (store in JSON)
-# ────────────────────────────────────────────────────────────────────────────
-@router.post(
-    "",
-    response_model=FollowUpActionOut,
-    status_code=status.HTTP_201_CREATED,
-)
-def create_action(
-        data: FollowUpActionCreate,
-        db: Session = Depends(get_db),
-        doctor: Doctor = Depends(get_current_doctor),
-):
-    """
-    Create a new follow-up action.  We append it into Patient.extra_summary["follow_up_actions"].
-    The client must supply:
-      - patient_id (int)
-      - action (str)
-      - follow_up_interval (optional)
-    """
-    # 1) Verify this patient exists and belongs to the current doctor:
-    patient = (
-        db.query(Patient)
-        .join("doctor_patients", Patient.patient_id == DoctorPatient.patient_id)
-        .filter(
-            Patient.patient_id == data.patient_id,
-            DoctorPatient.doctor_id == doctor.id
-        )
-        .first()
-    )
-    if not patient:
-        raise HTTPException(status_code=403, detail="Patient not found or not assigned to you")
-
-    # 2) Read the current JSON array:
-    raw_extra: dict = patient.extra_summary or {}
-    followups: List[dict] = raw_extra.get("follow_up_actions", [])
-
-    # 3) Compute a new “id” for this follow-up action.
-    #    We use a simple scheme: 1 + max(existing IDs), or 1 if none exist.
-    existing_ids = [item["id"] for item in followups]
-    new_id = max(existing_ids) + 1 if existing_ids else 1
-
-    # 4) Build the new JSON entry:
-    new_item = {
-        "id": new_id,
-        "action": data.action,
-        "interval": data.follow_up_interval or "",
-    }
-    followups.append(new_item)
-
-    # 5) Write the updated JSON back into extra_summary:
-    raw_extra["follow_up_actions"] = followups
-    patient.extra_summary = raw_extra
-    db.commit()
-    db.refresh(patient)
-
-    # 6) Return the newly‐created follow‐up action:
-    return FollowUpActionOut(
-        id=new_item["id"],
-        action=new_item["action"],
-        interval=new_item["interval"],
-    )
-
-
-#
-# ────────────────────────────────────────────────────────────────────────────
-#  2) List all follow-up actions for one patient (read JSON array)
-# ────────────────────────────────────────────────────────────────────────────
-@router.get(
-    "/by-patient/{patient_id}",
-    response_model=List[FollowUpActionOut],
-)
-def list_actions(
-        patient_id: int,
-        db: Session = Depends(get_db),
-        doctor: Doctor = Depends(get_current_doctor),
-):
-    """
-    Return all follow‐up actions for a given patient_id, read from
-    patient.extra_summary["follow_up_actions"].
-    """
-    patient = (
-        db.query(Patient)
-        .join("doctor_patients", Patient.patient_id == DoctorPatient.patient_id)
-        .filter(
-            Patient.patient_id == patient_id,
-            DoctorPatient.doctor_id == doctor.id
-        )
-        .first()
-    )
-    if not patient:
-        raise HTTPException(status_code=403, detail="Patient not found or not assigned to you")
-
-    raw_extra: dict = patient.extra_summary or {}
-    followups: List[dict] = raw_extra.get("follow_up_actions", [])
-
-    # Convert each JSON dict → Pydantic schema
-    return [
-        FollowUpActionOut(
-            id=item["id"],
-            action=item["action"],
-            interval=item.get("interval", ""),
-        )
-        for item in followups
-    ]
-
-
-#
-# ────────────────────────────────────────────────────────────────────────────
-#  3) Update one follow-up action (action text / interval), in JSON
-# ────────────────────────────────────────────────────────────────────────────
-@router.put(
+@follow_up_actions_router.put(
     "/{action_id}",
-    response_model=FollowUpActionOut,
+    status_code=status.HTTP_200_OK,
+    summary="Update a Follow-up Action",
+    description="Updates an existing follow-up action for a patient or converts a catalog item to a patient-specific item."
 )
-def update_action(
-        action_id: int,
-        data: FollowUpActionUpdate,
-        db: Session = Depends(get_db),
-        doctor: Doctor = Depends(get_current_doctor),
+def update_follow_up_action(
+    action_id: int,
+    data: FollowUpActionUpdate,
+    db: Session = Depends(get_db),
+    doctor: Doctor = Depends(get_current_doctor)
 ):
-    """
-    Patch an existing follow-up action.  We locate it inside
-    the patient.extra_summary["follow_up_actions"] array by matching {"id": action_id}.
-    Then we overwrite its "action" and/or "interval" fields.
-    """
-    # 1) We need to find which patient (if any) has this follow-up‐action in its JSON.
-    #    One strategy: scan each patient owned by this doctor and look inside its JSON.
-    #    (If you know the patient_id, you can pass that as a query parameter instead.)
-    patient = (
-        db.query(Patient)
-        .join("doctor_patients", Patient.patient_id == DoctorPatient.patient_id)
-        .filter(DoctorPatient.doctor_id == doctor.id)
-        .all()
-    )
-    # We’ll scan through each patient’s extra_summary until we find this action_id.
-    target_patient = None
-    for p in patient:
-        raw_extra: dict = p.extra_summary or {}
-        followups: List[dict] = raw_extra.get("follow_up_actions", [])
-        if any(item["id"] == action_id for item in followups):
-            target_patient = p
-            break
+    try:
+        # Check if this is a catalog item (ID >= 10000)
+        if action_id >= 10000:
+            # This is a catalog item, we need to find the corresponding auto-generated item in patient_follow_up_actions
+            catalog_id = action_id - 10000
+            
+            # Get the catalog item to find the matching auto-generated item
+            catalog_item = db.query(FollowUpActionCatalog).filter(
+                FollowUpActionCatalog.id == catalog_id
+            ).first()
+            
+            if not catalog_item:
+                raise HTTPException(status_code=404, detail="Catalog item not found")
+            
+            # Verify the patient belongs to this doctor
+            patient = db.query(Patient).filter(Patient.patient_id == data.patient_id).first()
+            if not patient:
+                raise HTTPException(status_code=404, detail="Patient not found")
+            
+            # Check if doctor has access to this patient
+            doctor_patient_relation = db.query(DoctorPatient).filter(
+                DoctorPatient.doctor_id == doctor.id,
+                DoctorPatient.patient_id == data.patient_id
+            ).first()
+            if not doctor_patient_relation:
+                raise HTTPException(status_code=403, detail="Access denied to this patient")
+            
+            # Find the existing auto-generated item in patient_follow_up_actions
+            existing_auto_generated = db.query(PatientFollowUpAction).filter(
+                PatientFollowUpAction.patient_id == data.patient_id,
+                PatientFollowUpAction.doctor_id == doctor.id,
+                PatientFollowUpAction.action == catalog_item.action,
+                PatientFollowUpAction.follow_up_interval == catalog_item.interval,
+                PatientFollowUpAction.auto_generated == True
+            ).first()
+            
+            if existing_auto_generated:
+                # Update the existing auto-generated item in place
+                existing_auto_generated.action = data.action
+                existing_auto_generated.follow_up_interval = data.follow_up_interval
+                existing_auto_generated.auto_generated = False  # Convert to user-owned
+                
+                db.commit()
+                db.refresh(existing_auto_generated)
+                
+                return {
+                    "id": existing_auto_generated.id,
+                    "action": existing_auto_generated.action,
+                    "follow_up_interval": existing_auto_generated.follow_up_interval,
+                    "auto_generated": existing_auto_generated.auto_generated
+                }
+            else:
+                # If no auto-generated item found, create a new user-owned item
+                new_follow_up_action = PatientFollowUpAction(
+                    action=data.action,
+                    follow_up_interval=data.follow_up_interval,
+                    patient_id=data.patient_id,
+                    doctor_id=doctor.id,
+                    auto_generated=False
+                )
+                
+                db.add(new_follow_up_action)
+                db.commit()
+                db.refresh(new_follow_up_action)
+                
+                return {
+                    "id": new_follow_up_action.id,
+                    "action": new_follow_up_action.action,
+                    "follow_up_interval": new_follow_up_action.follow_up_interval,
+                    "auto_generated": new_follow_up_action.auto_generated
+                }
+        
+        else:
+            # This is a regular patient-specific item
+            action = db.query(PatientFollowUpAction).filter(PatientFollowUpAction.id == action_id).first()
+            if not action:
+                raise HTTPException(status_code=404, detail="Follow-up action not found")
 
-    if not target_patient:
-        raise HTTPException(status_code=404, detail="Follow‐up action not found")
+            if action.doctor_id != doctor.id:
+                raise HTTPException(status_code=403, detail="Not authorized to update this action")
 
-    # 2) Mutate that JSON array in memory:
-    raw_extra: dict = target_patient.extra_summary or {}
-    followups: List[dict] = raw_extra.get("follow_up_actions", [])
-    updated_followups = []
-    found = False
-    for item in followups:
-        if item["id"] == action_id:
-            # Overwrite the fields
-            item["action"] = data.action
-            item["interval"] = data.follow_up_interval or ""
-            found = True
-        updated_followups.append(item)
+            # Check if content actually changed (smart editing) - normalize whitespace
+            old_action = (action.action or "").strip()
+            new_action = (data.action or "").strip()
+            old_interval = (action.follow_up_interval or "").strip()
+            new_interval = (data.follow_up_interval or "").strip()
+            
+            content_changed = (old_action != new_action or old_interval != new_interval)
+            
+            # If content changed and item was auto-generated, convert to user-owned
+            if content_changed and action.auto_generated:
+                action.auto_generated = False
+                print(f"[SMART EDIT] Content changed: '{old_action}' -> '{new_action}' or '{old_interval}' -> '{new_interval}', removing auto_generated flag")
+            
+            action.action = data.action
+            action.follow_up_interval = data.follow_up_interval
+            action.patient_id = data.patient_id
+            db.commit()
+            db.refresh(action)
+            return {
+                "id": action.id,
+                "action": action.action,
+                "follow_up_interval": action.follow_up_interval,
+                "auto_generated": action.auto_generated
+            }
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
-    if not found:
-        raise HTTPException(status_code=404, detail="Follow‐up action not found")
-
-    # 3) Write back the modified JSON array:
-    raw_extra["follow_up_actions"] = updated_followups
-    target_patient.extra_summary = raw_extra
-    db.commit()
-    db.refresh(target_patient)
-
-    # 4) Return the updated action
-    for item in updated_followups:
-        if item["id"] == action_id:
-            return FollowUpActionOut(
-                id=item["id"],
-                action=item["action"],
-                interval=item["interval"],
+@follow_up_actions_router.post(
+    "",
+    status_code=status.HTTP_201_CREATED,
+    summary="Add a Follow-up Action",
+    description="Adds a new follow-up action for a patient."
+)
+def add_follow_up_action(
+    data: FollowUpActionUpdate,
+    db: Session = Depends(get_db),
+    doctor: Doctor = Depends(get_current_doctor)
+):
+    try:
+        # Check for duplicate action with same action and interval
+        existing_action = db.query(PatientFollowUpAction).filter(
+            PatientFollowUpAction.patient_id == data.patient_id,
+            PatientFollowUpAction.doctor_id == doctor.id,
+            PatientFollowUpAction.action == data.action,
+            PatientFollowUpAction.follow_up_interval == data.follow_up_interval
+        ).first()
+        
+        if existing_action:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"A follow-up action with action '{data.action}' and interval '{data.follow_up_interval}' already exists for this patient."
             )
+        
+        new_action = PatientFollowUpAction(
+            patient_id=data.patient_id,
+            doctor_id=doctor.id,
+            action=data.action,
+            follow_up_interval=data.follow_up_interval,
+            auto_generated=False
+        )
+        db.add(new_action)
+        db.commit()
+        db.refresh(new_action)
+        return {
+            "id": new_action.id,
+            "action": new_action.action,
+            "follow_up_interval": new_action.follow_up_interval,
+            "auto_generated": new_action.auto_generated
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
-    # (should never reach here)
-    raise HTTPException(status_code=500, detail="Unknown error updating follow‐up action")
-
-
-#
-# ────────────────────────────────────────────────────────────────────────────
-#  4) Delete one follow-up action (remove from JSON)
-# ────────────────────────────────────────────────────────────────────────────
-@router.delete("/{action_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_action(
-        action_id: int,
-        db: Session = Depends(get_db),
-        doctor: Doctor = Depends(get_current_doctor),
+@follow_up_actions_router.delete(
+    "/{action_id}",
+    status_code=status.HTTP_200_OK,
+    summary="Delete a Follow-up Action",
+    description="Deletes a follow-up action for a patient."
+)
+def delete_follow_up_action(
+    action_id: int,
+    db: Session = Depends(get_db),
+    doctor: Doctor = Depends(get_current_doctor)
 ):
-    """
-    Delete a follow‐up action (by “id”) from patient.extra_summary["follow_up_actions"].
-    """
-    # 1) Find the patient that owns this action_id
-    patient = (
-        db.query(Patient)
-        .join("doctor_patients", Patient.patient_id == DoctorPatient.patient_id)
-        .filter(DoctorPatient.doctor_id == doctor.id)
-        .all()
-    )
-    target_patient = None
-    for p in patient:
-        raw_extra: dict = p.extra_summary or {}
-        followups: List[dict] = raw_extra.get("follow_up_actions", [])
-        if any(item["id"] == action_id for item in followups):
-            target_patient = p
-            break
+    try:
+        action = db.query(PatientFollowUpAction).filter(PatientFollowUpAction.id == action_id).first()
+        if not action:
+            raise HTTPException(status_code=404, detail="Follow-up action not found")
 
-    if not target_patient:
-        raise HTTPException(status_code=404, detail="Follow‐up action not found")
+        if action.doctor_id != doctor.id:
+            raise HTTPException(status_code=403, detail="Not authorized to delete this action")
 
-    # 2) Filter out the matching item
-    raw_extra: dict = target_patient.extra_summary or {}
-    followups: List[dict] = raw_extra.get("follow_up_actions", [])
-    remaining = [item for item in followups if item["id"] != action_id]
+        db.delete(action)
+        db.commit()
+        return {"message": f"Follow-up action ID {action_id} deleted successfully"}
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
-    # 3) Write back the filtered JSON array
-    raw_extra["follow_up_actions"] = remaining
-    target_patient.extra_summary = raw_extra
-    db.commit()
-
-    return None
+@follow_up_actions_router.get(
+    "/by-patient/{patient_id}",
+    status_code=status.HTTP_200_OK,
+    summary="Get Follow-up Actions by Patient ID",
+    description="Retrieves all follow-up actions for a specific patient."
+)
+def get_follow_up_actions_by_patient_id(
+    patient_id: int,
+    db: Session = Depends(get_db),
+    doctor: Doctor = Depends(get_current_doctor)
+):
+    try:
+        actions = db.query(PatientFollowUpAction).filter(
+            PatientFollowUpAction.patient_id == patient_id,
+            PatientFollowUpAction.doctor_id == doctor.id
+        ).all()
+        return actions
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")

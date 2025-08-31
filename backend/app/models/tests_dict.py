@@ -1,5 +1,5 @@
 from sqlalchemy import Column, String
-from core.config import Base
+from backend.app.core.config import Base
 
 class TestsDict(Base):
     __tablename__ = "tests_dict"

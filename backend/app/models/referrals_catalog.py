@@ -1,5 +1,5 @@
 from sqlalchemy import Column, Integer, String, Text
-from core.config import Base
+from backend.app.core.config import Base
 
 class ReferralsCatalog(Base):
     __tablename__ = "referrals_catalog"

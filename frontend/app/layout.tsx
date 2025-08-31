@@ -2,6 +2,7 @@ import "./globals.css";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { AuthProvider } from "@/components/AuthProvider";
+import { SWRProvider } from "./providers/SWRProvider";
 import { Toaster } from 'sonner';
 const inter = Inter({ subsets: ["latin"] });
 
@@ -15,8 +16,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <html lang="en">
         <body className={`${inter.className} bg-white`}>
         <AuthProvider>
-            <Toaster richColors position="top-right" />
-            {children}
+            <SWRProvider>
+                <Toaster richColors position="top-right" />
+                {children}
+            </SWRProvider>
         </AuthProvider>
         </body>
         </html>

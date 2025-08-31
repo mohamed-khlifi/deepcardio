@@ -1,5 +1,5 @@
 from sqlalchemy import Column, Integer, String, Enum, ForeignKey, Text
-from core.config import Base
+from backend.app.core.config import Base
 
 class PersonalHistoryDecisionRule(Base):
     __tablename__ = "personal_history_decision_rules"

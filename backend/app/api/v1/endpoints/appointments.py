@@ -3,18 +3,20 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 from typing import List
-from datetime import date
+from datetime import date, datetime
 
-from core.deps import get_db
-from core.deps_doctor import get_current_doctor
-from models import Patient
-from models.doctor import Doctor
-from models.doctor_patient import DoctorPatient
-from models.appointment import Appointment
-from models.appointment_schema import (
+from backend.app.core.deps import get_db
+from backend.app.core.deps_doctor import get_current_doctor
+from backend.app.models import Patient
+from backend.app.models.doctor import Doctor
+from backend.app.models.doctor_patient import DoctorPatient
+from backend.app.models.appointment import Appointment
+from backend.app.models.audit_log import AuditLog
+from backend.app.models.appointment_schema import (
     AppointmentCreate,
     AppointmentUpdate,
-    AppointmentResponse, AppointmentToday,
+    AppointmentResponse,
+    AppointmentToday,
 )
 
 appointments_router = APIRouter(prefix="/appointments", tags=["appointments"])
@@ -44,6 +46,29 @@ def create_appointment(
     db.add(appt)
     db.commit()
     db.refresh(appt)
+
+    # Fetch patient for audit log description
+    patient = db.query(Patient).filter(Patient.patient_id == data.patient_id).first()
+    patient_name = f"{patient.first_name} {patient.last_name}" if patient else "Unknown Patient"
+
+    # Log the creation in audit_logs
+    audit_log = AuditLog(
+        patient_id=data.patient_id,
+        doctor_id=doctor.id,
+        action_type="CREATE",
+        entity_type="APPOINTMENT",
+        action_details={
+            "appointment_id": appt.id,
+            "patient_id": appt.patient_id,
+            "datetime": str(appt.datetime),
+            "type": appt.type
+        },
+        description=f"Created appointment for {patient_name}",
+        created_at=datetime.utcnow()
+    )
+    db.add(audit_log)
+    db.commit()
+
     return appt
 
 @appointments_router.get(
@@ -101,11 +126,48 @@ def update_appointment(
     if not appt:
         raise HTTPException(status_code=404, detail="Appointment not found")
     ensure_patient_belongs_to_doctor(db, doctor, appt.patient_id)
+
+    # Capture old values for audit log
+    old_values = {
+        "appointment_id": appt.id,
+        "patient_id": appt.patient_id,
+        "datetime": str(appt.datetime),
+        "type": appt.type
+    }
+
+    # Update appointment fields
     update_data = data.model_dump(exclude_none=True)
     for field, val in update_data.items():
         setattr(appt, field, val)
     db.commit()
     db.refresh(appt)
+
+    # Fetch patient for audit log description
+    patient = db.query(Patient).filter(Patient.patient_id == appt.patient_id).first()
+    patient_name = f"{patient.first_name} {patient.last_name}" if patient else "Unknown Patient"
+
+    # Log the update in audit_logs
+    new_values = {
+        "appointment_id": appt.id,
+        "patient_id": appt.patient_id,
+        "datetime": str(appt.datetime),
+        "type": appt.type
+    }
+    audit_log = AuditLog(
+        patient_id=appt.patient_id,
+        doctor_id=doctor.id,
+        action_type="UPDATE",
+        entity_type="APPOINTMENT",
+        action_details={
+            "old_values": old_values,
+            "new_values": new_values
+        },
+        description=f"Updated appointment for {patient_name}",
+        created_at=datetime.utcnow()
+    )
+    db.add(audit_log)
+    db.commit()
+
     return appt
 
 @appointments_router.delete(
@@ -122,6 +184,31 @@ def delete_appointment(
     if not appt:
         raise HTTPException(status_code=404, detail="Appointment not found")
     ensure_patient_belongs_to_doctor(db, doctor, appt.patient_id)
+
+    # Capture appointment details for audit log
+    appt_details = {
+        "appointment_id": appt.id,
+        "patient_id": appt.patient_id,
+        "datetime": str(appt.datetime),
+        "type": appt.type
+    }
+
+    # Fetch patient for audit log description
+    patient = db.query(Patient).filter(Patient.patient_id == appt.patient_id).first()
+    patient_name = f"{patient.first_name} {patient.last_name}" if patient else "Unknown Patient"
+
+    # Log the deletion in audit_logs
+    audit_log = AuditLog(
+        patient_id=appt.patient_id,
+        doctor_id=doctor.id,
+        action_type="DELETE",
+        entity_type="APPOINTMENT",
+        action_details=appt_details,
+        description=f"Deleted appointment for {patient_name}",
+        created_at=datetime.utcnow()
+    )
+    db.add(audit_log)
+
     db.delete(appt)
     db.commit()
 

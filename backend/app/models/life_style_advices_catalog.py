@@ -1,5 +1,5 @@
 from sqlalchemy import Column, Integer, String, Text
-from core.config import Base
+from backend.app.core.config import Base
 
 class LifeStyleAdvicesCatalog(Base):
     __tablename__ = "life_style_advices_catalog"

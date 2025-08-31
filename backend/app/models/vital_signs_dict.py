@@ -1,5 +1,5 @@
 from sqlalchemy import Column, Integer, String
-from core.config import Base
+from backend.app.core.config import Base
 
 class VitalSignsDict(Base):
     __tablename__ = "vital_signs_dict"

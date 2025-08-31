@@ -1,5 +1,5 @@
 from sqlalchemy import Column, Integer, String, Text
-from core.config import Base
+from backend.app.core.config import Base
 
 class RecommendationsCatalog(Base):
     __tablename__ = "recommendations_catalog"
