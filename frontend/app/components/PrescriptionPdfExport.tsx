@@ -297,7 +297,7 @@ export function PrescriptionPdfExport({ prescriptions, patientName, doctorName, 
                     <Button
                         onClick={handleExport}
                         disabled={prescriptions.length === 0}
-                        className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-lg shadow-lg flex items-center gap-2 transition-all duration-200 transform hover:scale-105"
+                        className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-lg shadow-lg flex items-center gap-2 transition-all duration-200"
                     >
                         <div className="flex items-center gap-2">
                             <div className="p-1 bg-white/20 rounded-md">
@@ -310,7 +310,7 @@ export function PrescriptionPdfExport({ prescriptions, patientName, doctorName, 
                 </TooltipTrigger>
                 <TooltipContent side="top" className="bg-gray-800 text-white border-gray-700 text-sm">
                     <div className="flex items-center gap-2">
-                        <Pill className="w-4 h-4 text-emerald-400" />
+                        <Pill className="w-4 h-4 text-blue-400" />
                         <span>Download professional prescription PDF</span>
                     </div>
                 </TooltipContent>

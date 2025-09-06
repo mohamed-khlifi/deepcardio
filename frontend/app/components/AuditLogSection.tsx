@@ -343,7 +343,7 @@ export function AuditLogSection({ patientId, patientName }: AuditLogSectionProps
                         <div className="flex items-center gap-6">
                             <div className="relative">
                                 <div className="p-4 bg-white/20 backdrop-blur-sm rounded-2xl border border-white/30">
-                                    <Stethoscope className="w-12 h-12 text-white" />
+                                    <FileText className="w-12 h-12 text-white" />
                                 </div>
                                 <div className="absolute -top-2 -right-2 p-2 bg-red-500 rounded-full">
                                     <Heart className="w-4 h-4 text-white animate-pulse" />
@@ -497,7 +497,7 @@ export function AuditLogSection({ patientId, patientName }: AuditLogSectionProps
                             <div className="flex flex-col items-center justify-center py-20">
                                 <div className="relative mb-6">
                                     <div className="w-16 h-16 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
-                                    <Heart className="absolute inset-0 m-auto w-6 h-6 text-red-500 animate-pulse" />
+                                    <FileText className="absolute inset-0 m-auto w-6 h-6 text-blue-600" />
                                 </div>
                                 <p className="text-gray-600 text-lg">Loading medical timeline...</p>
                                 <p className="text-gray-500 text-sm mt-2">Securing patient data</p>

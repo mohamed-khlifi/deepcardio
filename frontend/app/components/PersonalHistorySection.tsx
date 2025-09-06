@@ -221,9 +221,9 @@ const PersonalHistorySection = memo(({
 
     return (
         <TooltipProvider>
-            <div className="min-h-screen bg-gradient-to-br from-slate-50 via-green-50/30 to-emerald-50/40">
+            <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/40">
                 {/* Professional Medical Header */}
-                <div className="relative bg-gradient-to-r from-green-600 via-emerald-700 to-teal-800 overflow-hidden">
+                <div className="relative bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-800 overflow-hidden">
                     {/* Subtle medical pattern background */}
                     <div className="absolute inset-0 opacity-5">
                         <div className="absolute top-20 left-20 w-32 h-32 border border-white rounded-full"></div>
@@ -236,14 +236,14 @@ const PersonalHistorySection = memo(({
                             <div className="flex items-center gap-6">
                                 {/* Professional medical icon */}
                                 <div className="p-4 bg-white/15 backdrop-blur-sm rounded-xl border border-white/20">
-                                    <FileText className="w-12 h-12 text-white" />
+                                    <History className="w-12 h-12 text-white" />
                                 </div>
 
                                 <div className="text-white">
                                     <h1 className="text-4xl font-bold tracking-tight mb-2">
                                         Personal Medical History
                                     </h1>
-                                    <p className="text-green-100 text-lg mb-1">
+                                    <p className="text-blue-100 text-lg mb-1">
                                         Comprehensive patient history documentation
                                     </p>
                                     <div className="text-white">
@@ -258,7 +258,7 @@ const PersonalHistorySection = memo(({
                                     <div className="flex items-center gap-3">
                                         <History className="w-6 h-6 text-yellow-300" />
                                         <div className="text-white">
-                                            <div className="text-sm text-green-100">Active Records</div>
+                                            <div className="text-sm text-blue-100">Active Records</div>
                                             <div className="text-2xl font-bold">{loading ? '...' : activeCount}</div>
                                         </div>
                                     </div>
@@ -267,7 +267,7 @@ const PersonalHistorySection = memo(({
                                     <div className="flex items-center gap-3">
                                         <CheckCircle className="w-6 h-6 text-green-300" />
                                         <div className="text-white">
-                                            <div className="text-sm text-green-100">Total Items</div>
+                                            <div className="text-sm text-blue-100">Total Items</div>
                                             <div className="text-xl font-bold">{loading ? '...' : historyDict?.length || 0}</div>
                                         </div>
                                     </div>
@@ -289,13 +289,13 @@ const PersonalHistorySection = memo(({
                     {/* Active History Summary */}
                     {!loading && activeCount > 0 && (
                         <Card className="mb-8 shadow-lg border-0 bg-white">
-                            <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50 border-b border-green-100 rounded-t-lg">
+                            <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-blue-100 rounded-t-lg">
                                 <CardTitle className="flex items-center gap-3 text-xl font-semibold text-gray-800">
-                                    <div className="p-2 bg-green-100 rounded-lg">
-                                        <History className="w-5 h-5 text-green-600" />
+                                    <div className="p-2 bg-blue-100 rounded-lg">
+                                        <History className="w-5 h-5 text-blue-600" />
                                     </div>
                                     Current Medical History
-                                    <Badge className="bg-green-100 text-green-700 border-green-200 ml-auto">
+                                    <Badge className="bg-blue-100 text-blue-700 border-blue-200 ml-auto">
                                         {activeCount} active
                                     </Badge>
                                 </CardTitle>
@@ -309,7 +309,7 @@ const PersonalHistorySection = memo(({
                                             <Badge
                                                 key={patHistory.id}
                                                 variant="secondary"
-                                                className="bg-green-50 text-green-700 border-green-200 px-3 py-1 text-sm"
+                                                className="bg-blue-50 text-blue-700 border-blue-200 px-3 py-1 text-sm"
                                             >
                                                 {historyItem.name}
                                             </Badge>
@@ -394,20 +394,20 @@ const PersonalHistorySection = memo(({
 
                     {/* Professional History Selection */}
                     <Card className="shadow-lg border-0 bg-white">
-                        <CardHeader className="bg-gradient-to-r from-gray-50 to-green-50 border-b border-gray-100">
+                        <CardHeader className="bg-gradient-to-r from-gray-50 to-blue-50 border-b border-gray-100">
                             <div className="flex items-center justify-between">
                                 <CardTitle className="flex items-center gap-3 text-xl font-semibold text-gray-800">
-                                    <div className="p-2 bg-green-100 rounded-lg">
-                                        <FileText className="w-5 h-5 text-green-600" />
+                                    <div className="p-2 bg-blue-100 rounded-lg">
+                                        <FileText className="w-5 h-5 text-blue-600" />
                                     </div>
                                     Personal Medical History
                                 </CardTitle>
                                 <div className="flex items-center gap-3">
-                                    <Badge variant="secondary" className="bg-green-50 text-green-700 border-green-200 px-3 py-1">
+                                    <Badge variant="secondary" className="bg-blue-50 text-blue-700 border-blue-200 px-3 py-1">
                                         {loading ? '...' : historyDict?.length || 0} items available
                                     </Badge>
                                     <div className="flex items-center gap-2 text-sm text-gray-600">
-                                        <Shield className="w-4 h-4 text-green-500" />
+                                        <Shield className="w-4 h-4 text-blue-500" />
                                         <span>Medical Records</span>
                                     </div>
                                 </div>
@@ -417,15 +417,15 @@ const PersonalHistorySection = memo(({
                             {loading ? (
                                 <div className="flex flex-col items-center justify-center py-20">
                                     <div className="relative mb-6">
-                                        <div className="w-16 h-16 border-4 border-green-200 border-t-green-600 rounded-full animate-spin"></div>
-                                        <FileText className="absolute inset-0 m-auto w-6 h-6 text-green-600" />
+                                        <div className="w-16 h-16 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
+                                        <History className="absolute inset-0 m-auto w-6 h-6 text-blue-600" />
                                     </div>
                                     <p className="text-gray-600 text-lg">Loading medical history...</p>
                                     <p className="text-gray-500 text-sm mt-2">Accessing patient records</p>
                                 </div>
                             ) : (
                                 <Card className="shadow-md border border-gray-200 bg-white">
-                                    <CardHeader className="bg-gradient-to-r from-green-600 to-emerald-700 text-white rounded-t-lg py-4">
+                                    <CardHeader className="bg-gradient-to-r from-blue-600 to-indigo-700 text-white rounded-t-lg py-4">
                                         <CardTitle className="flex items-center gap-3 text-lg font-semibold">
                                             <User className="w-5 h-5 text-white" />
                                             <span className="flex-1">Medical History Items</span>
@@ -449,13 +449,13 @@ const PersonalHistorySection = memo(({
                                                                 flex items-center justify-between py-4 px-5 
                                                                 transition-colors duration-200
                                                                 border-b border-gray-100 last:border-b-0
-                                                                ${isActive ? 'bg-green-50' : 'hover:bg-gray-50'}
+                                                                ${isActive ? 'bg-blue-50' : 'hover:bg-gray-50'}
                                                             `}
                                                         >
                                                             <div className="flex items-center gap-3 flex-1">
                                                                 <div className={`
                                                                     w-2 h-2 rounded-full 
-                                                                    ${isActive ? 'bg-green-500' : 'bg-gray-300'}
+                                                                    ${isActive ? 'bg-blue-500' : 'bg-gray-300'}
                                                                 `}></div>
 
                                                                 <Label
@@ -472,7 +472,7 @@ const PersonalHistorySection = memo(({
                                                                 <TooltipTrigger asChild>
                                                                     <div className="flex items-center gap-2">
                                                                         {isActive && (
-                                                                            <Badge variant="secondary" className="bg-green-100 text-green-700 border-green-200 text-xs px-2 py-0.5">
+                                                                            <Badge variant="secondary" className="bg-blue-100 text-blue-700 border-blue-200 text-xs px-2 py-0.5">
                                                                                 Active
                                                                             </Badge>
                                                                         )}
@@ -480,7 +480,7 @@ const PersonalHistorySection = memo(({
                                                                             id={`history-${item.id}`}
                                                                             checked={isActive}
                                                                             onCheckedChange={(v) => toggle(item.id, !!v)}
-                                                                            className="w-5 h-5 border-2 border-gray-400 data-[state=checked]:border-green-500 data-[state=checked]:bg-green-500"
+                                                                            className="w-5 h-5 border-2 border-gray-400 data-[state=checked]:border-blue-500 data-[state=checked]:bg-blue-500"
                                                                         />
                                                                     </div>
                                                                 </TooltipTrigger>
@@ -507,11 +507,11 @@ const PersonalHistorySection = memo(({
                     {/* Professional Medical Footer */}
                     <div className="mt-8 text-center py-6">
                         <div className="flex items-center justify-center gap-2 text-gray-500 text-sm">
-                            <Heart className="w-4 h-4 text-green-500" />
+                            <Heart className="w-4 h-4 text-blue-500" />
                             <span>Comprehensive Medical Documentation</span>
                             <span>•</span>
                             <span>Evidence-Based History Tracking</span>
-                            <Shield className="w-4 h-4 text-green-500" />
+                            <Shield className="w-4 h-4 text-blue-500" />
                         </div>
                     </div>
                 </div>

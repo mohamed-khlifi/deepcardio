@@ -250,9 +250,9 @@ export function PrescriptionsSection({
     };
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-emerald-50/30 to-teal-50/40">
+        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/40">
             {/* Professional Medical Header */}
-            <div className="relative bg-gradient-to-r from-emerald-600 via-teal-700 to-green-800 overflow-hidden">
+            <div className="relative bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-800 overflow-hidden">
                 {/* Subtle medical pattern background */}
                 <div className="absolute inset-0 opacity-5">
                     <div className="absolute top-20 left-20 w-32 h-32 border border-white rounded-full"></div>
@@ -272,7 +272,7 @@ export function PrescriptionsSection({
                                 <h1 className="text-4xl font-bold tracking-tight mb-2">
                                     Prescription Management
                                 </h1>
-                                <p className="text-emerald-100 text-lg mb-1">
+                                <p className="text-blue-100 text-lg mb-1">
                                     Comprehensive medication tracking and analytics
                                 </p>
                                 <div className="text-white">
@@ -287,16 +287,16 @@ export function PrescriptionsSection({
                                 <div className="flex items-center gap-3">
                                     <Pill className="w-6 h-6 text-yellow-300" />
                                     <div className="text-white">
-                                        <div className="text-sm text-emerald-100">Active Prescriptions</div>
+                                        <div className="text-sm text-blue-100">Active Prescriptions</div>
                                         <div className="text-2xl font-bold">{prescriptions.length}</div>
                                     </div>
                                 </div>
                             </div>
                             <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/20">
                                 <div className="flex items-center gap-3">
-                                    <TrendingUp className="w-6 h-6 text-green-300" />
+                                    <TrendingUp className="w-6 h-6 text-blue-300" />
                                     <div className="text-white">
-                                        <div className="text-sm text-emerald-100">Total Prescribed</div>
+                                        <div className="text-sm text-blue-100">Total Prescribed</div>
                                         <div className="text-xl font-bold">{history?.total_prescriptions || 0}</div>
                                     </div>
                                 </div>
@@ -305,7 +305,7 @@ export function PrescriptionsSection({
                                 <div className="flex items-center gap-3">
                                     <Target className="w-6 h-6 text-blue-300" />
                                     <div className="text-white">
-                                        <div className="text-sm text-emerald-100">Unique Medicines</div>
+                                        <div className="text-sm text-blue-100">Unique Medicines</div>
                                         <div className="text-xl font-bold">{history?.unique_medicines || 0}</div>
                                     </div>
                                 </div>
@@ -326,15 +326,15 @@ export function PrescriptionsSection({
             <div className="max-w-7xl mx-auto px-6 -mt-8 relative z-10">
                 {/* Tab Navigation */}
                 <Card className="mb-8 shadow-lg border-0 bg-white">
-                    <CardHeader className="bg-gradient-to-r from-emerald-50 to-teal-50 border-b border-emerald-100 rounded-t-lg py-4">
+                    <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-blue-100 rounded-t-lg py-4">
                         <div className="flex items-center justify-between">
                             <div className="flex gap-2">
                                 <Button
                                     variant={activeTab === 'current' ? 'default' : 'outline'}
                                     onClick={() => setActiveTab('current')}
                                     className={activeTab === 'current' 
-                                        ? 'bg-emerald-600 hover:bg-emerald-700 text-white' 
-                                        : 'border-emerald-200 text-emerald-700 hover:bg-emerald-50'
+                                        ? 'bg-blue-600 hover:bg-blue-700 text-white' 
+                                        : 'border-blue-200 text-blue-700 hover:bg-blue-50'
                                     }
                                 >
                                     <Pill className="w-4 h-4 mr-2" />
@@ -344,8 +344,8 @@ export function PrescriptionsSection({
                                     variant={activeTab === 'history' ? 'default' : 'outline'}
                                     onClick={() => setActiveTab('history')}
                                     className={activeTab === 'history' 
-                                        ? 'bg-emerald-600 hover:bg-emerald-700 text-white' 
-                                        : 'border-emerald-200 text-emerald-700 hover:bg-emerald-50'
+                                        ? 'bg-blue-600 hover:bg-blue-700 text-white' 
+                                        : 'border-blue-200 text-blue-700 hover:bg-blue-50'
                                     }
                                 >
                                     <History className="w-4 h-4 mr-2" />
@@ -355,8 +355,8 @@ export function PrescriptionsSection({
                                     variant={activeTab === 'analytics' ? 'default' : 'outline'}
                                     onClick={() => setActiveTab('analytics')}
                                     className={activeTab === 'analytics' 
-                                        ? 'bg-emerald-600 hover:bg-emerald-700 text-white' 
-                                        : 'border-emerald-200 text-emerald-700 hover:bg-emerald-50'
+                                        ? 'bg-blue-600 hover:bg-blue-700 text-white' 
+                                        : 'border-blue-200 text-blue-700 hover:bg-blue-50'
                                     }
                                 >
                                     <BarChart3 className="w-4 h-4 mr-2" />
@@ -376,7 +376,7 @@ export function PrescriptionsSection({
                                         setEditingId(null);
                                         setIsAddingNew(true);
                                     }}
-                                    className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                                    className="bg-blue-600 hover:bg-blue-700 text-white"
                                 >
                                     <Plus className="w-4 h-4 mr-2" />
                                     New Prescription
@@ -389,33 +389,25 @@ export function PrescriptionsSection({
                 {/* Current Prescriptions Tab */}
                 {activeTab === 'current' && (
                     <Card className="shadow-lg border-0 bg-white">
-                        <CardHeader className="bg-gradient-to-r from-gray-50 to-emerald-50 border-b border-gray-100">
+                        <CardHeader className="bg-gradient-to-r from-gray-50 to-blue-50 border-b border-gray-100">
                             <div className="flex items-center justify-between">
                                 <CardTitle className="flex items-center gap-3 text-xl font-semibold text-gray-800">
-                                    <div className="p-2 bg-emerald-100 rounded-lg">
-                                        <Pill className="w-5 h-5 text-emerald-600" />
+                                    <div className="p-2 bg-blue-100 rounded-lg">
+                                        <Pill className="w-5 h-5 text-blue-600" />
                                     </div>
                                     Active Medications
-                                    <Badge variant="secondary" className="bg-emerald-100 text-emerald-700 border-emerald-200 px-3 py-1">
+                                    <Badge variant="secondary" className="bg-blue-100 text-blue-700 border-blue-200 px-3 py-1">
                                         {prescriptions.length} active
                                     </Badge>
                                 </CardTitle>
-                                {prescriptions.length > 0 && (
-                                    <PrescriptionPdfExport
-                                        prescriptions={prescriptions}
-                                        patientName={patientName}
-                                        doctorName={doctorName || "Dr. Physician"}
-                                        patientId={patientId}
-                                    />
-                                )}
                             </div>
                         </CardHeader>
                         <CardContent className="p-8">
                             {loading ? (
                                 <div className="flex flex-col items-center justify-center py-20">
                                     <div className="relative mb-6">
-                                        <div className="w-16 h-16 border-4 border-emerald-200 border-t-emerald-600 rounded-full animate-spin"></div>
-                                        <Pill className="absolute inset-0 m-auto w-6 h-6 text-emerald-600" />
+                                        <div className="w-16 h-16 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
+                                        <Pill className="absolute inset-0 m-auto w-6 h-6 text-blue-600" />
                                     </div>
                                     <p className="text-gray-600 text-lg">Loading prescriptions...</p>
                                     <p className="text-gray-500 text-sm mt-2">Accessing medication records</p>
@@ -423,7 +415,7 @@ export function PrescriptionsSection({
                             ) : prescriptions.length > 0 ? (
                                 <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
                                     {prescriptions.map((prescription) => (
-                                        <Card key={prescription.id} className="border border-emerald-200/60 bg-gradient-to-br from-white to-emerald-50/30 shadow-sm hover:shadow-md transition-all duration-200">
+                                        <Card key={prescription.id} className="border border-blue-200/60 bg-gradient-to-br from-white to-blue-50/30 shadow-sm hover:shadow-md transition-all duration-200">
                                             <CardHeader className="pb-3">
                                                 <div className="flex items-start justify-between">
                                                     <div className="flex-1">
@@ -431,7 +423,7 @@ export function PrescriptionsSection({
                                                             {prescription.medicine_name}
                                                         </h3>
                                                         <div className="flex flex-wrap gap-2 mb-3">
-                                                            <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 text-xs">
+                                                            <Badge className="bg-blue-100 text-blue-700 border-blue-200 text-xs">
                                                                 {prescription.dosage}
                                                             </Badge>
                                                             <Badge variant="secondary" className={`text-xs ${getFrequencyColor(prescription.frequency)}`}>
@@ -447,9 +439,9 @@ export function PrescriptionsSection({
                                                                         size="sm"
                                                                         variant="ghost"
                                                                         onClick={() => handleEdit(prescription)}
-                                                                        className="h-8 w-8 p-0 hover:bg-emerald-100"
+                                                                        className="h-8 w-8 p-0 hover:bg-blue-100"
                                                                     >
-                                                                        <Edit3 className="w-4 h-4 text-emerald-600" />
+                                                                        <Edit3 className="w-4 h-4 text-blue-600" />
                                                                     </Button>
                                                                 </TooltipTrigger>
                                                                 <TooltipContent>
@@ -515,8 +507,8 @@ export function PrescriptionsSection({
                                 </div>
                             ) : (
                                 <div className="flex flex-col items-center justify-center py-16 text-center">
-                                    <div className="w-20 h-20 bg-gradient-to-br from-emerald-100 to-teal-200 rounded-2xl flex items-center justify-center mb-6 shadow-sm">
-                                        <Pill className="w-10 h-10 text-emerald-600" />
+                                    <div className="w-20 h-20 bg-gradient-to-br from-blue-100 to-indigo-200 rounded-2xl flex items-center justify-center mb-6 shadow-sm">
+                                        <Pill className="w-10 h-10 text-blue-600" />
                                     </div>
                                     <h3 className="text-lg font-semibold text-gray-800 mb-2">No Active Prescriptions</h3>
                                     <p className="text-gray-500 text-sm mb-4">Start by adding a new prescription for this patient</p>
@@ -526,7 +518,7 @@ export function PrescriptionsSection({
                                             setEditingId(null);
                                             setIsAddingNew(true);
                                         }}
-                                        className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                                        className="bg-blue-600 hover:bg-blue-700 text-white"
                                     >
                                         <Plus className="w-4 h-4 mr-2" />
                                         Add First Prescription
@@ -540,13 +532,13 @@ export function PrescriptionsSection({
                 {/* History Timeline Tab */}
                 {activeTab === 'history' && history && (
                     <Card className="shadow-lg border-0 bg-white">
-                        <CardHeader className="bg-gradient-to-r from-gray-50 to-emerald-50 border-b border-gray-100">
+                        <CardHeader className="bg-gradient-to-r from-gray-50 to-blue-50 border-b border-gray-100">
                             <CardTitle className="flex items-center gap-3 text-xl font-semibold text-gray-800">
-                                <div className="p-2 bg-emerald-100 rounded-lg">
-                                    <History className="w-5 h-5 text-emerald-600" />
+                                <div className="p-2 bg-blue-100 rounded-lg">
+                                    <History className="w-5 h-5 text-blue-600" />
                                 </div>
                                 Prescription Timeline
-                                <Badge variant="secondary" className="bg-emerald-100 text-emerald-700 border-emerald-200 px-3 py-1">
+                                <Badge variant="secondary" className="bg-blue-100 text-blue-700 border-blue-200 px-3 py-1">
                                     {history.prescription_timeline.length} total
                                 </Badge>
                             </CardTitle>
@@ -556,18 +548,18 @@ export function PrescriptionsSection({
                                 {history.prescription_timeline.map((prescription, index) => (
                                     <div key={prescription.id} className="flex items-start gap-4">
                                         <div className="flex flex-col items-center">
-                                            <div className="w-3 h-3 bg-emerald-600 rounded-full"></div>
+                                            <div className="w-3 h-3 bg-blue-600 rounded-full"></div>
                                             {index < history.prescription_timeline.length - 1 && (
-                                                <div className="w-0.5 h-16 bg-emerald-200 mt-2"></div>
+                                                <div className="w-0.5 h-16 bg-blue-200 mt-2"></div>
                                             )}
                                         </div>
-                                        <div className="flex-1 bg-gradient-to-r from-white to-emerald-50/30 border border-emerald-200/60 rounded-xl p-4">
+                                        <div className="flex-1 bg-gradient-to-r from-white to-blue-50/30 border border-blue-200/60 rounded-xl p-4">
                                             <div className="flex items-start justify-between mb-2">
                                                 <h4 className="font-medium text-gray-900">{prescription.medicine_name}</h4>
                                                 <span className="text-xs text-gray-500">{formatDate(prescription.created_at)}</span>
                                             </div>
                                             <div className="flex flex-wrap gap-2 mb-3">
-                                                <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 text-xs">
+                                                <Badge className="bg-blue-100 text-blue-700 border-blue-200 text-xs">
                                                     {prescription.dosage}
                                                 </Badge>
                                                 <Badge variant="secondary" className={`text-xs ${getFrequencyColor(prescription.frequency)}`}>
@@ -628,22 +620,22 @@ export function PrescriptionsSection({
 
                         {/* Statistics Overview */}
                         <Card className="shadow-lg border-0 bg-white">
-                            <CardHeader className="bg-gradient-to-r from-emerald-50 to-teal-50 border-b border-emerald-100">
+                            <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-blue-100">
                                 <CardTitle className="flex items-center gap-3 text-lg font-semibold text-gray-800">
-                                    <div className="p-2 bg-emerald-100 rounded-lg">
-                                        <BarChart3 className="w-5 h-5 text-emerald-600" />
+                                    <div className="p-2 bg-blue-100 rounded-lg">
+                                        <BarChart3 className="w-5 h-5 text-blue-600" />
                                     </div>
                                     Prescription Statistics
                                 </CardTitle>
                             </CardHeader>
                             <CardContent className="p-6">
                                 <div className="grid grid-cols-2 gap-4">
-                                    <div className="bg-gradient-to-br from-emerald-50 to-teal-50 rounded-xl p-4 border border-emerald-200">
+                                    <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-4 border border-blue-200">
                                         <div className="flex items-center gap-3 mb-2">
-                                            <Archive className="w-5 h-5 text-emerald-600" />
-                                            <span className="text-sm font-medium text-emerald-700">Total Prescribed</span>
+                                            <Archive className="w-5 h-5 text-blue-600" />
+                                            <span className="text-sm font-medium text-blue-700">Total Prescribed</span>
                                         </div>
-                                        <p className="text-2xl font-bold text-emerald-800">{history.total_prescriptions}</p>
+                                        <p className="text-2xl font-bold text-blue-800">{history.total_prescriptions}</p>
                                     </div>
                                     <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-4 border border-blue-200">
                                         <div className="flex items-center gap-3 mb-2">
@@ -675,11 +667,11 @@ export function PrescriptionsSection({
                 {/* Professional Medical Footer */}
                 <div className="mt-8 text-center py-6">
                     <div className="flex items-center justify-center gap-2 text-gray-500 text-sm">
-                        <Pill className="w-4 h-4 text-emerald-500" />
+                        <Pill className="w-4 h-4 text-blue-500" />
                         <span>Evidence-Based Prescription Management</span>
                         <span>•</span>
                         <span>Comprehensive Medication Tracking</span>
-                        <Shield className="w-4 h-4 text-emerald-500" />
+                        <Shield className="w-4 h-4 text-blue-500" />
                     </div>
                 </div>
             </div>
@@ -687,7 +679,7 @@ export function PrescriptionsSection({
             {/* Add/Edit Prescription Dialog */}
             <Dialog open={isAddingNew} onOpenChange={setIsAddingNew}>
                 <DialogContent className="sm:max-w-md bg-white rounded-lg p-0 shadow-xl border-0">
-                    <DialogHeader className="bg-gradient-to-r from-emerald-600 to-teal-700 text-white rounded-t-lg p-6">
+                    <DialogHeader className="bg-gradient-to-r from-blue-600 to-indigo-700 text-white rounded-t-lg p-6">
                         <DialogTitle className="flex items-center gap-3 text-xl font-semibold">
                             <Pill className="w-6 h-6" />
                             {editingId ? 'Edit Prescription' : 'New Prescription'}
@@ -701,7 +693,7 @@ export function PrescriptionsSection({
                                 value={formData.medicine_name}
                                 onChange={(e) => setFormData({ ...formData, medicine_name: e.target.value })}
                                 placeholder="e.g., Metformin"
-                                className="border-emerald-200 focus:border-emerald-500 focus:ring-emerald-500"
+                                className="border-blue-200 focus:border-blue-500 focus:ring-blue-500"
                             />
                         </div>
                         <div className="grid grid-cols-2 gap-4">
@@ -712,7 +704,7 @@ export function PrescriptionsSection({
                                     value={formData.dosage}
                                     onChange={(e) => setFormData({ ...formData, dosage: e.target.value })}
                                     placeholder="e.g., 500mg"
-                                    className="border-emerald-200 focus:border-emerald-500 focus:ring-emerald-500"
+                                    className="border-blue-200 focus:border-blue-500 focus:ring-blue-500"
                                 />
                             </div>
                             <div className="space-y-2">
@@ -722,7 +714,7 @@ export function PrescriptionsSection({
                                     value={formData.frequency}
                                     onChange={(e) => setFormData({ ...formData, frequency: e.target.value })}
                                     placeholder="e.g., Twice daily"
-                                    className="border-emerald-200 focus:border-emerald-500 focus:ring-emerald-500"
+                                    className="border-blue-200 focus:border-blue-500 focus:ring-blue-500"
                                     list="frequency-options"
                                 />
                                 <datalist id="frequency-options">
@@ -739,7 +731,7 @@ export function PrescriptionsSection({
                                 value={formData.duration}
                                 onChange={(e) => setFormData({ ...formData, duration: e.target.value })}
                                 placeholder="e.g., 30 days"
-                                className="border-emerald-200 focus:border-emerald-500 focus:ring-emerald-500"
+                                className="border-blue-200 focus:border-blue-500 focus:ring-blue-500"
                                 list="duration-options"
                             />
                             <datalist id="duration-options">
@@ -755,7 +747,7 @@ export function PrescriptionsSection({
                                 value={formData.instructions}
                                 onChange={(e) => setFormData({ ...formData, instructions: e.target.value })}
                                 placeholder="Additional instructions for the patient..."
-                                className="border-emerald-200 focus:border-emerald-500 focus:ring-emerald-500 min-h-[80px]"
+                                className="border-blue-200 focus:border-blue-500 focus:ring-blue-500 min-h-[80px]"
                             />
                         </div>
                     </div>
@@ -774,7 +766,7 @@ export function PrescriptionsSection({
                         </Button>
                         <Button
                             onClick={handleSubmit}
-                            className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                            className="bg-blue-600 hover:bg-blue-700 text-white"
                         >
                             <Save className="w-4 h-4 mr-2" />
                             {editingId ? 'Update' : 'Add'} Prescription

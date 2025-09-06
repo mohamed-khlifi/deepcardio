@@ -16,7 +16,8 @@ import {
     Shield,
     Monitor,
     BarChart3,
-    Stethoscope
+    Stethoscope,
+    HeartPulse
 } from 'lucide-react';
 import {
     Card,
@@ -57,21 +58,21 @@ const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8001/api/v1';
 const getCategoryIcon = (category: string) => {
     const categoryLower = category.toLowerCase();
     if (categoryLower.includes('cardiovascular') || categoryLower.includes('cardiac') || categoryLower.includes('heart') || categoryLower.includes('blood pressure')) {
-        return <Heart className="w-5 h-5 text-red-600" />;
+        return <Heart className="w-5 h-5 text-white" />;
     }
     if (categoryLower.includes('respiratory') || categoryLower.includes('lung') || categoryLower.includes('breath') || categoryLower.includes('oxygen')) {
-        return <Wind className="w-5 h-5 text-red-600" />;
+        return <Wind className="w-5 h-5 text-white" />;
     }
     if (categoryLower.includes('temperature') || categoryLower.includes('fever') || categoryLower.includes('thermal')) {
-        return <Thermometer className="w-5 h-5 text-red-600" />;
+        return <Thermometer className="w-5 h-5 text-white" />;
     }
     if (categoryLower.includes('fluid') || categoryLower.includes('hydration') || categoryLower.includes('blood')) {
-        return <Droplets className="w-5 h-5 text-red-600" />;
+        return <Droplets className="w-5 h-5 text-white" />;
     }
     if (categoryLower.includes('metabolic') || categoryLower.includes('glucose') || categoryLower.includes('sugar')) {
-        return <BarChart3 className="w-5 h-5 text-red-600" />;
+        return <BarChart3 className="w-5 h-5 text-white" />;
     }
-    return <Activity className="w-5 h-5 text-red-600" />;
+    return <Activity className="w-5 h-5 text-white" />;
 };
 
 export function VitalSignsSection({
@@ -256,9 +257,9 @@ export function VitalSignsSection({
     const recordedCount = Array.from(records.values()).filter(r => r.value && r.value.trim() !== '').length;
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-red-50/30 to-rose-50/40">
+        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/40">
             {/* Professional Medical Header */}
-            <div className="relative bg-gradient-to-r from-red-600 via-rose-700 to-pink-800 overflow-hidden">
+            <div className="relative bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-800 overflow-hidden">
                 {/* Subtle medical pattern background */}
                 <div className="absolute inset-0 opacity-5">
                     <div className="absolute top-20 left-20 w-32 h-32 border border-white rounded-full"></div>
@@ -270,15 +271,15 @@ export function VitalSignsSection({
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-6">
                             {/* Professional medical icon */}
-                            <div className="p-4 bg-white/15 backdrop-blur-sm rounded-xl border border-white/20">
-                                <Monitor className="w-12 h-12 text-white" />
-                            </div>
+                                <div className="p-4 bg-white/15 backdrop-blur-sm rounded-xl border border-white/20">
+                                    <HeartPulse className="w-12 h-12 text-white" />
+                                </div>
 
                             <div className="text-white">
                                 <h1 className="text-4xl font-bold tracking-tight mb-2">
                                     Vital Signs Monitoring
                                 </h1>
-                                <p className="text-red-100 text-lg mb-1">
+                                <p className="text-blue-100 text-lg mb-1">
                                     Real-time patient vitals tracking and analysis
                                 </p>
                                 <div className="text-white">
@@ -293,7 +294,7 @@ export function VitalSignsSection({
                                 <div className="flex items-center gap-3">
                                     <TrendingUp className="w-6 h-6 text-yellow-300" />
                                     <div className="text-white">
-                                        <div className="text-sm text-red-100">Recorded</div>
+                                        <div className="text-sm text-blue-100">Recorded</div>
                                         <div className="text-2xl font-bold">{recordedCount}</div>
                                     </div>
                                 </div>
@@ -302,7 +303,7 @@ export function VitalSignsSection({
                                 <div className="flex items-center gap-3">
                                     <CheckCircle className="w-6 h-6 text-green-300" />
                                     <div className="text-white">
-                                        <div className="text-sm text-red-100">Categories</div>
+                                        <div className="text-sm text-blue-100">Categories</div>
                                         <div className="text-xl font-bold">{byCategory.length}</div>
                                     </div>
                                 </div>
@@ -324,13 +325,13 @@ export function VitalSignsSection({
                 {/* Recorded Vitals Summary */}
                 {recordedCount > 0 && (
                     <Card className="mb-8 shadow-lg border-0 bg-white">
-                        <CardHeader className="bg-gradient-to-r from-red-50 to-rose-50 border-b border-red-100 rounded-t-lg">
+                        <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-blue-100 rounded-t-lg">
                             <CardTitle className="flex items-center gap-3 text-xl font-semibold text-gray-800">
-                                <div className="p-2 bg-red-100 rounded-lg">
-                                    <TrendingUp className="w-5 h-5 text-red-600" />
+                                <div className="p-2 bg-blue-100 rounded-lg">
+                                    <TrendingUp className="w-5 h-5 text-blue-600" />
                                 </div>
                                 Current Vital Signs
-                                <Badge className="bg-red-100 text-red-700 border-red-200 ml-auto">
+                                <Badge className="bg-blue-100 text-blue-700 border-blue-200 ml-auto">
                                     {recordedCount} recorded
                                 </Badge>
                             </CardTitle>
@@ -342,10 +343,10 @@ export function VitalSignsSection({
                                     const vital = dict.find(v => v.vital_sign_id === vitalSignId);
                                     if (!vital) return null;
                                     return (
-                                        <div key={vitalSignId} className="bg-red-50 border border-red-200 rounded-lg p-3">
-                                            <div className="text-sm font-medium text-red-900">{vital.name}</div>
-                                            <div className="text-lg font-bold text-red-700 mt-1">
-                                                {record.value} {vital.unit && <span className="text-sm text-red-600">{vital.unit}</span>}
+                                        <div key={vitalSignId} className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                                            <div className="text-sm font-medium text-blue-900">{vital.name}</div>
+                                            <div className="text-lg font-bold text-blue-700 mt-1">
+                                                {record.value} {vital.unit && <span className="text-sm text-blue-600">{vital.unit}</span>}
                                             </div>
                                         </div>
                                     );
@@ -357,20 +358,20 @@ export function VitalSignsSection({
 
                 {/* Professional Vital Signs Input */}
                 <Card className="shadow-lg border-0 bg-white">
-                    <CardHeader className="bg-gradient-to-r from-gray-50 to-red-50 border-b border-gray-100">
+                    <CardHeader className="bg-gradient-to-r from-gray-50 to-blue-50 border-b border-gray-100">
                         <div className="flex items-center justify-between">
                             <CardTitle className="flex items-center gap-3 text-xl font-semibold text-gray-800">
-                                <div className="p-2 bg-red-100 rounded-lg">
-                                    <Monitor className="w-5 h-5 text-red-600" />
+                                <div className="p-2 bg-blue-100 rounded-lg">
+                                    <Monitor className="w-5 h-5 text-blue-600" />
                                 </div>
                                 Vital Signs Categories
                             </CardTitle>
                             <div className="flex items-center gap-3">
-                                <Badge variant="secondary" className="bg-red-50 text-red-700 border-red-200 px-3 py-1">
+                                <Badge variant="secondary" className="bg-blue-50 text-blue-700 border-blue-200 px-3 py-1">
                                     {dict.length} parameters available
                                 </Badge>
                                 <div className="flex items-center gap-2 text-sm text-gray-600">
-                                    <Shield className="w-4 h-4 text-red-500" />
+                                    <Shield className="w-4 h-4 text-blue-500" />
                                     <span>Clinical Monitoring</span>
                                 </div>
                             </div>
@@ -380,8 +381,8 @@ export function VitalSignsSection({
                         {loading ? (
                             <div className="flex flex-col items-center justify-center py-20">
                                 <div className="relative mb-6">
-                                    <div className="w-16 h-16 border-4 border-red-200 border-t-red-600 rounded-full animate-spin"></div>
-                                    <Monitor className="absolute inset-0 m-auto w-6 h-6 text-red-600" />
+                                    <div className="w-16 h-16 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
+                                    <HeartPulse className="absolute inset-0 m-auto w-6 h-6 text-blue-600" />
                                 </div>
                                 <p className="text-gray-600 text-lg">Loading vital signs...</p>
                                 <p className="text-gray-500 text-sm mt-2">Accessing monitoring parameters</p>
@@ -400,7 +401,7 @@ export function VitalSignsSection({
                                                 key={category}
                                                 className="shadow-md border border-gray-200 bg-white"
                                             >
-                                                <CardHeader className="bg-gradient-to-r from-red-600 to-rose-700 text-white rounded-t-lg py-4">
+                                                <CardHeader className="bg-gradient-to-r from-blue-600 to-indigo-700 text-white rounded-t-lg py-4">
                                                     <CardTitle className="flex items-center gap-3 text-lg font-semibold">
                                                         {getCategoryIcon(category)}
                                                         <span className="flex-1">{category}</span>
@@ -426,13 +427,13 @@ export function VitalSignsSection({
                                                                             flex items-center justify-between py-4 px-5 
                                                                             transition-colors duration-200
                                                                             border-b border-gray-100 last:border-b-0
-                                                                            ${hasValue ? 'bg-red-50' : 'hover:bg-gray-50'}
+                                                                            ${hasValue ? 'bg-blue-50' : 'hover:bg-gray-50'}
                                                                         `}
                                                                     >
                                                                         <div className="flex items-center gap-3 flex-1">
                                                                             <div className={`
                                                                                 w-2 h-2 rounded-full 
-                                                                                ${hasValue ? 'bg-red-500' : 'bg-gray-300'}
+                                                                                ${hasValue ? 'bg-blue-500' : 'bg-gray-300'}
                                                                             `}></div>
 
                                                                             <div className="flex-1">
@@ -456,7 +457,7 @@ export function VitalSignsSection({
                                                                             <TooltipTrigger asChild>
                                                                                 <div className="flex items-center gap-2">
                                                                                     {hasValue && (
-                                                                                        <Badge variant="secondary" className="bg-red-100 text-red-700 border-red-200 text-xs px-2 py-0.5">
+                                                                                        <Badge variant="secondary" className="bg-blue-100 text-blue-700 border-blue-200 text-xs px-2 py-0.5">
                                                                                             Recorded
                                                                                         </Badge>
                                                                                     )}
@@ -468,7 +469,7 @@ export function VitalSignsSection({
                                                                                             setValues(new Map(values));
                                                                                         }}
                                                                                         onBlur={() => handleBlur(vital.vital_sign_id)}
-                                                                                        className="w-[90px] shrink-0 text-center border-2 border-gray-300 focus:border-red-500 focus:ring-red-500"
+                                                                                        className="w-[90px] shrink-0 text-center border-2 border-gray-300 focus:border-blue-500 focus:ring-blue-500"
                                                                                         placeholder="Value"
                                                                                     />
                                                                                 </div>
@@ -500,11 +501,11 @@ export function VitalSignsSection({
                 {/* Professional Medical Footer */}
                 <div className="mt-8 text-center py-6">
                     <div className="flex items-center justify-center gap-2 text-gray-500 text-sm">
-                        <Heart className="w-4 h-4 text-red-500" />
+                        <Heart className="w-4 h-4 text-blue-500" />
                         <span>Comprehensive Vital Signs Monitoring</span>
                         <span>•</span>
                         <span>Real-Time Clinical Data</span>
-                        <Shield className="w-4 h-4 text-red-500" />
+                        <Shield className="w-4 h-4 text-blue-500" />
                     </div>
                 </div>
             </div>

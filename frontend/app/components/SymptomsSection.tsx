@@ -198,8 +198,12 @@ export const SymptomsSection = memo(function SymptomsSection({
         return (
             <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/40 flex items-center justify-center">
                 <div className="flex flex-col items-center gap-4">
-                    <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
-                    <p className="text-gray-600">Loading symptoms...</p>
+                    <div className="relative">
+                        <div className="w-16 h-16 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
+                        <Stethoscope className="absolute inset-0 m-auto w-6 h-6 text-blue-600" />
+                    </div>
+                    <p className="text-gray-600 text-lg">Loading symptoms...</p>
+                    <p className="text-gray-500 text-sm">Accessing clinical records</p>
                 </div>
             </div>
         );
@@ -320,7 +324,7 @@ export const SymptomsSection = memo(function SymptomsSection({
                                         <Badge
                                             key={patSym.id}
                                             variant="secondary"
-                                            className="bg-red-50 text-red-700 border-red-200 px-3 py-1 text-sm"
+                                            className="bg-blue-50 text-blue-700 border-blue-200 px-3 py-1 text-sm"
                                         >
                                             {symptom.name}
                                         </Badge>

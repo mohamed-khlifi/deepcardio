@@ -16,7 +16,7 @@ export interface RiskSummary {
   score: number;   // 1–100
 }
 
-const OPENAI_KEY = process.env.OPENAI_API_KEY;
+const OPENAI_KEY = process.env.NEXT_PUBLIC_OPENAI_API_KEY;
 const OPENAI_ENDPOINT = "https://api.openai.com/v1/chat/completions";
 const MODEL = "gpt-4o-mini";
 
