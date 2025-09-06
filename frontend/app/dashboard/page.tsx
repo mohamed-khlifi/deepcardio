@@ -4,6 +4,7 @@ import React from 'react';
 import { TopBar } from '@/app/components/TopBar';
 import { PatientSearch } from '@/app/components/PatientSearch';
 import { AppointmentsList } from '@/app/components/AppointmentsList';
+import { DoctorCalendar } from '@/app/components/DoctorCalendar';
 import { useAuth0 } from '@auth0/auth0-react';
 import {
     Stethoscope,
@@ -89,7 +90,8 @@ export default function Dashboard() {
 
             {/* Main Content */}
             <div className="max-w-7xl mx-auto px-6 -mt-8 relative z-10">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                {/* Top Row - Patient Management and Today's Schedule */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
                     {/* Left: Patient Search */}
                     <div className="space-y-6">
                         <div className="bg-white rounded-2xl shadow-lg border-0 overflow-hidden">
@@ -123,6 +125,11 @@ export default function Dashboard() {
                             </div>
                         </div>
                     </div>
+                </div>
+
+                {/* Bottom Row - Full Width Calendar */}
+                <div className="mb-8">
+                    <DoctorCalendar />
                 </div>
 
                 {/*/!* Quick Actions Section *!/*/}

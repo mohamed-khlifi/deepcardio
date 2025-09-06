@@ -1,5 +1,5 @@
 # File: app/api/v1/endpoints/appointments.py
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 from typing import List
@@ -215,7 +215,7 @@ def delete_appointment(
 @appointments_router.get(
     "/today",
     response_model=List[AppointmentToday],
-    summary="Get this doctor’s appointments scheduled for today (with patient names)",
+    summary="Get this doctor's appointments scheduled for today (with patient names)",
 )
 def read_todays_appointments(
         db: Session = Depends(get_db),
@@ -244,6 +244,56 @@ def read_todays_appointments(
         .join(Patient, Patient.patient_id == Appointment.patient_id)
         .filter(Appointment.patient_id.in_(subq))
         .filter(func.date(Appointment.datetime) == today_date)
+        .order_by(Appointment.datetime)
+        .all()
+    )
+
+    # Convert each row into a dict for Pydantic
+    result = [
+        {
+            "id": r.id,
+            "patient_id": r.patient_id,
+            "datetime": r.datetime,
+            "type": r.type,
+            "patient_first_name": r.patient_first_name,
+            "patient_last_name": r.patient_last_name,
+        }
+        for r in rows
+    ]
+    return result
+
+@appointments_router.get(
+    "/range",
+    response_model=List[AppointmentToday],
+    summary="Get this doctor's appointments for a date range (with patient names)",
+)
+def read_appointments_by_range(
+        start_date: date = Query(..., description="Start date (YYYY-MM-DD)"),
+        end_date: date = Query(..., description="End date (YYYY-MM-DD)"),
+        db: Session = Depends(get_db),
+        doctor: Doctor = Depends(get_current_doctor),
+):
+    """
+    Returns all appointments for the logged-in doctor within the specified date range.
+    Each record includes appointment.id, patient_id, datetime, type,
+    patient_first_name and patient_last_name.
+    """
+    # 1) Find all patient_ids that belong to this doctor:
+    subq = db.query(DoctorPatient.patient_id).filter_by(doctor_id=doctor.id).subquery()
+
+    rows = (
+        db.query(
+            Appointment.id,
+            Appointment.patient_id,
+            Appointment.datetime,
+            Appointment.type,
+            Patient.first_name.label("patient_first_name"),
+            Patient.last_name.label("patient_last_name"),
+        )
+        .join(Patient, Patient.patient_id == Appointment.patient_id)
+        .filter(Appointment.patient_id.in_(subq))
+        .filter(func.date(Appointment.datetime) >= start_date)
+        .filter(func.date(Appointment.datetime) <= end_date)
         .order_by(Appointment.datetime)
         .all()
     )
